@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts"
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart"
-import { Plus, Trash2, Calculator, FileText, RefreshCw } from "lucide-react"
+import { AlertCircle, ArrowRight, Calculator, FileText, Plus, RefreshCw, Trash2 } from "lucide-react"
 
 interface RevenuItem {
   id: string
@@ -135,60 +135,103 @@ const mapMaritalStatusToSituationFiscale = (maritalStatus: string): string => {
 
 // Fonction pour calculer le nombre de parts fiscales
 const calculateFiscalParts = (situationFamiliale: string, childrenCount: number): number => {
-  switch(situationFamiliale) {
-    case 'celibataire':
-      return 1 + (childrenCount > 0 ? (childrenCount === 1 ? 0.5 : (childrenCount * 0.5)) : 0)
-    case 'divorce':
-    case 'veuf':
-      return 1 + (childrenCount > 0 ? (childrenCount === 1 ? 0.5 : (childrenCount * 0.5)) : 0)
-    case 'marie':
-    case 'pacs':
-      return 2 + (childrenCount > 0 ? (childrenCount === 1 ? 0.5 : (childrenCount === 2 ? 1 : 2 + (childrenCount - 2) * 0.5)) : 0)
+  // Déterminer le nombre de parts de base selon la situation familiale
+  let baseParts = 1; // Célibataire, divorcé, veuf par défaut
+  
+  if (situationFamiliale === 'marie' || situationFamiliale === 'pacs') {
+    baseParts = 2; // Marié ou pacsé
+  }
+  
+  // Ajouter les parts pour les enfants selon la formule fournie
+  switch(childrenCount) {
+    case 0:
+      return baseParts;
+    case 1:
+      return baseParts + 0.5;
+    case 2:
+      return baseParts + 0.5 + 0.5;
+    case 3:
+      return baseParts + 0.5 + 0.5 + 1;
+    case 4:
+      return baseParts + 0.5 + 0.5 + 1 + 1;
     default:
-      return 1
+      // Pour plus de 4 enfants, on continue le modèle (1 part par enfant supplémentaire après le 4ème)
+      return baseParts + 0.5 + 0.5 + 1 + 1 + (childrenCount - 4);
+  }
+}
+
+// Fonction pour obtenir le libellé de la situation familiale
+const getSituationFamilialeLabel = (situation: string): string => {
+  switch(situation) {
+    case 'celibataire': return 'Célibataire'
+    case 'marie': return 'Marié(e)'
+    case 'pacs': return 'Pacsé(e)'
+    case 'divorce': return 'Divorcé(e)'
+    case 'veuf': return 'Veuf(ve)'
+    default: return 'Célibataire'
   }
 }
 
 export default function ImpotRevenuPage() {
   const [revenus, setRevenus] = useState<RevenuItem[]>([])
   const [situationFamiliale, setSituationFamiliale] = useState("celibataire")
+  const [situationFamilialeLabel, setSituationFamilialeLabel] = useState("Célibataire")
   const [nbParts, setNbParts] = useState(1)
-  const [identityDataLoaded, setIdentityDataLoaded] = useState(false)
+  const [partsModifiedManually, setPartsModifiedManually] = useState(false)
+  const [deductionsImpot, setDeductionsImpot] = useState(0)
+  const [reductionsImpot, setReductionsImpot] = useState(0)
+  const [creditImpot, setCreditImpot] = useState(0)
 
   const loadDataFromLocalStorage = useCallback(() => {
     if (typeof window !== "undefined") {
-      // Load identity personal data first (if not previously loaded)
-      if (!identityDataLoaded) {
-        const savedIdentityData = localStorage.getItem(LOCAL_STORAGE_KEY_IDENTITY_PERSONAL)
-        if (savedIdentityData) {
-          const parsedIdentity = JSON.parse(savedIdentityData)
-          const maritalStatus = parsedIdentity.maritalStatus || ''
-          const children = parsedIdentity.children || []
-          
-          // Map marital status to situation familiale
-          const mappedSituationFamiliale = mapMaritalStatusToSituationFiscale(maritalStatus)
-          
-          // Calculate number of fiscal parts based on situation and children
-          const calculatedParts = calculateFiscalParts(mappedSituationFamiliale, children.length)
-          
-          // Only set these values from identity if we haven't loaded fiscal data yet
-          setSituationFamiliale(mappedSituationFamiliale)
-          setNbParts(calculatedParts)
-          setIdentityDataLoaded(true)
-        }
+      const savedIdentityData = localStorage.getItem(LOCAL_STORAGE_KEY_IDENTITY_PERSONAL)
+      console.log("🔍 Données d'identité trouvées:", savedIdentityData)
+      
+      if (savedIdentityData) {
+        const parsedIdentity = JSON.parse(savedIdentityData)
+        console.log("📊 Données d'identité parsées:", parsedIdentity)
+        
+        const maritalStatus = parsedIdentity.maritalStatus || ''
+        const children = parsedIdentity.children || []
+        
+        console.log("👫 Statut marital:", maritalStatus)
+        console.log("👶 Enfants:", children, "Nombre:", children.length)
+        
+        const mappedSituationFamiliale = mapMaritalStatusToSituationFiscale(maritalStatus)
+        const calculatedParts = calculateFiscalParts(mappedSituationFamiliale, children.length)
+        const familialeLabel = getSituationFamilialeLabel(mappedSituationFamiliale)
+        
+        console.log("🏠 Situation familiale mappée:", mappedSituationFamiliale)
+        console.log("🧮 Parts calculées:", calculatedParts)
+        console.log("🏷️ Libellé situation familiale:", familialeLabel)
+        
+        setSituationFamiliale(mappedSituationFamiliale)
+        setSituationFamilialeLabel(familialeLabel)
+        setNbParts(calculatedParts)
+      } else {
+        console.log("❌ Aucune donnée d'identité trouvée dans localStorage")
       }
       
-      // Load manually entered fiscal data (this will override identity data if exists)
       const savedFiscalData = localStorage.getItem(LOCAL_STORAGE_KEY_IR)
       let manualRevenus: RevenuItem[] = []
       if (savedFiscalData) {
         const parsed = JSON.parse(savedFiscalData)
+        console.log("💰 Données fiscales existantes:", parsed)
         manualRevenus = parsed.revenus?.filter((r: RevenuItem) => r.source === "manual") || []
-        setSituationFamiliale(parsed.situationFamiliale || "celibataire")
-        setNbParts(parsed.nbParts || 1)
+        
+        if (parsed.nbParts && typeof parsed.nbParts === 'number') {
+          console.log("⚠️ Utilisation du nombre de parts des données fiscales:", parsed.nbParts)
+          setNbParts(parsed.nbParts)
+          setPartsModifiedManually(true) // Marquer comme modifié manuellement si des données fiscales existent
+          // Ne pas écraser la situation familiale qui vient de l'identité
+        }
+        
+        // Charger les valeurs des déductions, réductions et crédits d'impôt
+        if (parsed.deductionsImpot !== undefined) setDeductionsImpot(parsed.deductionsImpot)
+        if (parsed.reductionsImpot !== undefined) setReductionsImpot(parsed.reductionsImpot)
+        if (parsed.creditImpot !== undefined) setCreditImpot(parsed.creditImpot)
       }
-
-      // Load and map budget revenus
+      
       const savedBudgetRevenus = localStorage.getItem(LOCAL_STORAGE_KEY_BUDGET_REVENUS)
       let budgetMappedRevenus: RevenuItem[] = []
       if (savedBudgetRevenus) {
@@ -202,17 +245,40 @@ export default function ImpotRevenuPage() {
   useEffect(() => {
     loadDataFromLocalStorage()
   }, [loadDataFromLocalStorage])
+  
+  // Effet pour recalculer le nombre de parts quand la situation familiale change, sauf si modifié manuellement
+  useEffect(() => {
+    const savedIdentityData = localStorage.getItem(LOCAL_STORAGE_KEY_IDENTITY_PERSONAL)
+    if (savedIdentityData && !partsModifiedManually) {
+      const parsedIdentity = JSON.parse(savedIdentityData)
+      const children = parsedIdentity.children || []
+      const calculatedParts = calculateFiscalParts(situationFamiliale, children.length)
+      setNbParts(calculatedParts)
+    }
+  }, [situationFamiliale, partsModifiedManually])
 
   const saveDataToLocalStorage = () => {
     if (typeof window !== "undefined") {
+      // Récupérer la situation familiale actuelle depuis l'identité
+      const savedIdentityData = localStorage.getItem(LOCAL_STORAGE_KEY_IDENTITY_PERSONAL)
+      let currentSituationFamiliale = situationFamiliale
+      
+      if (savedIdentityData) {
+        const parsedIdentity = JSON.parse(savedIdentityData)
+        const maritalStatus = parsedIdentity.maritalStatus || ''
+        currentSituationFamiliale = mapMaritalStatusToSituationFiscale(maritalStatus)
+      }
+      
       const manualRevenus = revenus.filter((r) => r.source === "manual")
       const dataToSave = {
         revenus: manualRevenus, // Only save manually added/edited ones for this page
-        situationFamiliale,
+        situationFamiliale: currentSituationFamiliale, // Utiliser la valeur de l'identité
         nbParts,
+        deductionsImpot,
+        reductionsImpot,
+        creditImpot,
       }
       localStorage.setItem(LOCAL_STORAGE_KEY_IR, JSON.stringify(dataToSave))
-      // alert("Données fiscales enregistrées !") // Optional: use a toast
     }
   }
 
@@ -320,22 +386,64 @@ export default function ImpotRevenuPage() {
   const revenuNetGlobal = revenuBrutGlobal - abattementsTotal
   const revenuImposable = Math.max(0, revenuNetGlobal)
 
-  const calculerImpot = (revenu: number, parts: number) => {
-    const quotientFamilial = revenu / parts
-    let impot = 0
-    if (quotientFamilial <= 11294) impot = 0
-    else if (quotientFamilial <= 28797) impot = (quotientFamilial - 11294) * 0.11
-    else if (quotientFamilial <= 82341) impot = (28797 - 11294) * 0.11 + (quotientFamilial - 28797) * 0.3
-    else if (quotientFamilial <= 177106)
-      impot = (28797 - 11294) * 0.11 + (82341 - 28797) * 0.3 + (quotientFamilial - 82341) * 0.41
-    else
-      impot =
-        (28797 - 11294) * 0.11 + (82341 - 28797) * 0.3 + (177106 - 82341) * 0.41 + (quotientFamilial - 177106) * 0.45
-    return Math.max(0, impot * parts)
+  const calculateImpot = (revenuImposable: number, nbParts: number): { impot: number; tauxMoyen: number; trancheMarginal: number; impotApresAvantages: number } => {
+    const bareme = [
+      { limite: 10777, taux: 0 },
+      { limite: 27478, taux: 0.11 },
+      { limite: 78570, taux: 0.30 },
+      { limite: 168994, taux: 0.41 },
+      { limite: Infinity, taux: 0.45 },
+    ]
+
+    // Calcul du quotient familial
+    // On applique d'abord les déductions d'impôt au revenu imposable
+    const revenuApresDeductions = Math.max(0, revenuImposable - deductionsImpot)
+    const quotient = revenuApresDeductions / nbParts
+
+    // Calcul de l'impôt par part
+    let impotParPart = 0
+    let trancheMarginal = 0
+
+    for (let i = 0; i < bareme.length; i++) {
+      const tranche = bareme[i]
+      const tranchePrecedente = i > 0 ? bareme[i - 1].limite : 0
+
+      if (quotient > tranchePrecedente) {
+        const montantDansLaTranche = Math.min(quotient, tranche.limite) - tranchePrecedente
+        impotParPart += montantDansLaTranche * tranche.taux
+
+        if (quotient <= tranche.limite) {
+          trancheMarginal = tranche.taux
+          break
+        }
+      }
+    }
+
+    // Calcul de l'impôt total
+    const impotBrut = impotParPart * nbParts
+    const impot = Math.max(0, impotBrut)
+    
+    // Application des réductions et crédits d'impôt
+    // Les réductions d'impôt ne peuvent pas réduire l'impôt en dessous de zéro
+    const impotApresReductions = Math.max(0, impot - reductionsImpot)
+    // Les crédits d'impôt peuvent générer un remboursement (impôt négatif)
+    const impotApresAvantages = impotApresReductions - creditImpot
+    
+    const tauxMoyen = revenuImposable > 0 ? (impot / revenuImposable) * 100 : 0
+
+    return {
+      impot, // Impôt brut avant avantages fiscaux
+      tauxMoyen,
+      trancheMarginal: trancheMarginal * 100,
+      impotApresAvantages, // Impôt final après déductions, réductions et crédits
+    }
   }
 
-  const impotBrut = calculerImpot(revenuImposable, nbParts)
-  const tauxMoyenImposition = revenuImposable > 0 ? (impotBrut / revenuImposable) * 100 : 0
+  const impotResult = calculateImpot(revenuImposable, nbParts)
+  const impotBrut = impotResult.impot
+  const tauxMoyenImposition = impotResult.tauxMoyen
+  const trancheMarginal = impotResult.trancheMarginal
+  const impotApresAvantages = impotResult.impotApresAvantages
 
   const repartitionData = revenus
     .filter((item) => item.montant > 0)
@@ -382,29 +490,79 @@ export default function ImpotRevenuPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="situation">Situation familiale</Label>
-                <Select value={situationFamiliale} onValueChange={setSituationFamiliale}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="celibataire">Célibataire</SelectItem>
-                    <SelectItem value="marie">Marié(e)</SelectItem>
-                    <SelectItem value="pacs">Pacsé(e)</SelectItem>
-                    <SelectItem value="divorce">Divorcé(e)</SelectItem>
-                    <SelectItem value="veuf">Veuf(ve)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted px-3 py-2 text-sm">
+                  {situationFamilialeLabel}
+                </div>
+                <p className="text-xs text-muted-foreground">Définie dans la section Identité</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="parts">Nombre de parts</Label>
-                <Input
-                  id="parts"
-                  type="number"
-                  step="0.5"
-                  min="1"
-                  value={nbParts}
-                  onChange={(e) => setNbParts(Number.parseFloat(e.target.value) || 1)}
-                />
+                <div className="relative">
+                  <Input
+                    id="parts"
+                    type="number"
+                    step="0.5"
+                    min="1"
+                    value={nbParts}
+                    onChange={(e) => {
+                      setNbParts(Number.parseFloat(e.target.value) || 1)
+                      setPartsModifiedManually(true) // Marquer comme modifié manuellement quand l'utilisateur change la valeur
+                    }}
+                    className="pr-8"
+                  />
+                  <button 
+                    type="button"
+                    className="absolute inset-y-0 right-0 flex items-center pr-2 cursor-pointer"
+                    onClick={() => {
+                      // Réinitialiser le nombre de parts à partir des données d'identité
+                      const savedIdentityData = localStorage.getItem(LOCAL_STORAGE_KEY_IDENTITY_PERSONAL)
+                      if (savedIdentityData) {
+                        const parsedIdentity = JSON.parse(savedIdentityData)
+                        const children = parsedIdentity.children || []
+                        const calculatedParts = calculateFiscalParts(situationFamiliale, children.length)
+                        setNbParts(calculatedParts)
+                        setPartsModifiedManually(false)
+                      }
+                    }}
+                    title="Réinitialiser le nombre de parts"
+                  >
+                    <RefreshCw className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">Calculé automatiquement mais modifiable</p>
+              </div>
+            </div>
+            <Separator />
+            <div className="space-y-4 mb-6">
+              <h3 className="text-lg font-medium">Avantages fiscaux</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="deductions">Déductions d'impôt (€)</Label>
+                  <Input
+                    id="deductions"
+                    type="number"
+                    value={deductionsImpot}
+                    onChange={(e) => setDeductionsImpot(Number(e.target.value) || 0)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="reductions">Réductions d'impôt (€)</Label>
+                  <Input
+                    id="reductions"
+                    type="number"
+                    value={reductionsImpot}
+                    onChange={(e) => setReductionsImpot(Number(e.target.value) || 0)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="credit">Crédit d'impôt (€)</Label>
+                  <Input
+                    id="credit"
+                    type="number"
+                    value={creditImpot}
+                    onChange={(e) => setCreditImpot(Number(e.target.value) || 0)}
+                  />
+                </div>
               </div>
             </div>
             <Separator />
@@ -488,15 +646,28 @@ export default function ImpotRevenuPage() {
             <CardDescription>Répartition et évolution de vos revenus</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="p-4 bg-muted/30 rounded-lg">
-                <div className="text-sm font-medium mb-1">Taux moyen d'imposition</div>
-                <div className="text-2xl font-bold">{tauxMoyenImposition.toFixed(1)}%</div>
+            <div className="grid grid-cols-1 gap-4 mb-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm font-medium">Revenu imposable</div>
+                  <div className="text-2xl font-bold">{revenuImposable.toLocaleString()} €</div>
+                </div>
+                <div>
+                  <div className="text-sm font-medium">Impôt brut</div>
+                  <div className="text-2xl font-bold">{impotBrut.toLocaleString()} €</div>
+                </div>
               </div>
-              <div className="p-4 bg-muted/30 rounded-lg">
-                <div className="text-sm font-medium mb-1">Tranche marginale</div>
-                <div className="text-2xl font-bold">
-                  {revenuImposable > 177106 ? "45%" : revenuImposable > 82341 ? "41%" : revenuImposable > 28797 ? "30%" : revenuImposable > 11294 ? "11%" : "0%"}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm font-medium">Avantages fiscaux</div>
+                  <div className="text-2xl font-bold">{(deductionsImpot + reductionsImpot + creditImpot).toLocaleString()} €</div>
+                </div>
+                <div>
+                  <div className="text-sm font-medium">Impôt final</div>
+                  <div className={`text-2xl font-bold ${impotApresAvantages < 0 ? 'text-green-600' : ''}`}>
+                    {impotApresAvantages.toLocaleString()} €
+                    {impotApresAvantages < 0 && <span className="text-sm ml-2">(remboursement)</span>}
+                  </div>
                 </div>
               </div>
             </div>
@@ -528,16 +699,36 @@ export default function ImpotRevenuPage() {
                   </span>
                 </div>
                 <Separator />
+                <div className="flex justify-between">
+                  <span>Déductions d'impôt</span>
+                  <span className="font-medium">
+                    -{deductionsImpot.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Réductions d'impôt</span>
+                  <span className="font-medium">
+                    -{reductionsImpot.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Crédit d'impôt</span>
+                  <span className="font-medium">
+                    -{creditImpot.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
+                  </span>
+                </div>
+                <Separator />
                 <div className="flex justify-between text-lg font-semibold">
                   <span>Impôt sur le revenu</span>
-                  <span className="text-red-600">
-                    {impotBrut.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
+                  <span className={impotApresAvantages < 0 ? "text-green-600" : "text-red-600"}>
+                    {impotApresAvantages.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
+                    {impotApresAvantages < 0 && " (remboursement)"}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Revenu net après impôt</span>
                   <span className="text-green-600">
-                    {(revenuImposable - impotBrut).toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
+                    {(revenuImposable - impotApresAvantages).toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
                   </span>
                 </div>
               </CardContent>
