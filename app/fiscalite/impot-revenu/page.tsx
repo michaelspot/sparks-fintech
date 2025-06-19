@@ -488,6 +488,19 @@ export default function ImpotRevenuPage() {
             <CardDescription>Répartition et évolution de vos revenus</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="p-4 bg-muted/30 rounded-lg">
+                <div className="text-sm font-medium mb-1">Taux moyen d'imposition</div>
+                <div className="text-2xl font-bold">{tauxMoyenImposition.toFixed(1)}%</div>
+              </div>
+              <div className="p-4 bg-muted/30 rounded-lg">
+                <div className="text-sm font-medium mb-1">Tranche marginale</div>
+                <div className="text-2xl font-bold">
+                  {revenuImposable > 177106 ? "45%" : revenuImposable > 82341 ? "41%" : revenuImposable > 28797 ? "30%" : revenuImposable > 11294 ? "11%" : "0%"}
+                </div>
+              </div>
+            </div>
+            
             <Card className="bg-muted/50">
               <CardHeader className="p-4 pb-0">
                 <CardTitle className="flex items-center gap-2 text-lg">
@@ -522,10 +535,6 @@ export default function ImpotRevenuPage() {
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Taux moyen d'imposition</span>
-                  <Badge variant="secondary">{tauxMoyenImposition.toFixed(1)}%</Badge>
-                </div>
-                <div className="flex justify-between text-lg font-semibold">
                   <span>Revenu net après impôt</span>
                   <span className="text-green-600">
                     {(revenuImposable - impotBrut).toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
@@ -533,92 +542,6 @@ export default function ImpotRevenuPage() {
                 </div>
               </CardContent>
             </Card>
-            <div>
-              <h3 className="text-sm font-medium mb-3">Répartition par type de revenu</h3>
-              <ChartContainer config={{ revenus: { label: "Revenus" } }} className="h-[200px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={repartitionData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={40}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {repartitionData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <ChartTooltip
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload
-                          return (
-                            <div className="rounded-lg border bg-background p-2 shadow-sm">
-                              <div className="grid grid-cols-1 gap-1">
-                                <span className="text-[0.70rem] uppercase text-muted-foreground">{data.name}</span>
-                                <span className="font-bold text-muted-foreground">
-                                  {data.value.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
-                                </span>
-                              </div>
-                            </div>
-                          )
-                        }
-                        return null
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </ChartContainer>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium mb-3">Évolution du calcul fiscal</h3>
-              <ChartContainer
-                config={{ montant: { label: "Montant", color: "hsl(var(--chart-1))" } }}
-                className="h-[200px]"
-              >
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={evolutionData} layout="horizontal">
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} />
-                    <YAxis dataKey="name" type="category" width={120} />
-                    <ChartTooltip
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          return (
-                            <div className="rounded-lg border bg-background p-2 shadow-sm">
-                              <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                {payload[0].payload.name}
-                              </span>
-                              <span className="font-bold">
-                                {Math.abs(payload[0].value as number).toLocaleString("fr-FR", {
-                                  style: "currency",
-                                  currency: "EUR",
-                                })}
-                              </span>
-                            </div>
-                          )
-                        }
-                        return null
-                      }}
-                    />
-                    <Bar dataKey="montant" fill="var(--color-montant)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartContainer>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <Card className="p-3">
-                <div className="text-2xl font-bold text-blue-600">{tauxMoyenImposition.toFixed(1)}%</div>
-                <p className="text-xs text-muted-foreground">Taux moyen</p>
-              </Card>
-              <Card className="p-3">
-                <div className="text-2xl font-bold text-green-600">{nbParts}</div>
-                <p className="text-xs text-muted-foreground">Parts fiscales</p>
-              </Card>
-            </div>
           </CardContent>
         </Card>
       </div>
