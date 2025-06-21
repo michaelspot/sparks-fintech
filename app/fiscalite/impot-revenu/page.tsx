@@ -8,6 +8,16 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
+import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
+import { ThemeToggle } from "@/components/theme-toggle"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts"
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart"
 import { AlertCircle, ArrowRight, Calculator, FileText, Plus, RefreshCw, Trash2 } from "lucide-react"
@@ -242,8 +252,40 @@ export default function ImpotRevenuPage() {
     }
   }, [])
 
+  // Étendre l'interface Window pour notre utilisation
   useEffect(() => {
     loadDataFromLocalStorage()
+    
+    // Mettre en place un écouteur d'événements pour détecter les changements du localStorage
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === LOCAL_STORAGE_KEY_BUDGET_REVENUS || e.key === LOCAL_STORAGE_KEY_IDENTITY_PERSONAL) {
+        loadDataFromLocalStorage()
+      }
+    }
+    
+    // Surveiller les changements du localStorage
+    window.addEventListener('storage', handleStorageChange)
+    
+    // Variables pour stocker les dernières valeurs connues
+    let lastBudgetData = localStorage.getItem(LOCAL_STORAGE_KEY_BUDGET_REVENUS) || ''
+    let lastIdentityData = localStorage.getItem(LOCAL_STORAGE_KEY_IDENTITY_PERSONAL) || ''
+    
+    // Vérifier périodiquement les changements (car les modifications dans le même onglet ne déclenchent pas l'événement storage)
+    const intervalId = setInterval(() => {
+      const currentBudgetData = localStorage.getItem(LOCAL_STORAGE_KEY_BUDGET_REVENUS) || ''
+      const currentIdentityData = localStorage.getItem(LOCAL_STORAGE_KEY_IDENTITY_PERSONAL) || ''
+      
+      if (currentBudgetData !== lastBudgetData || currentIdentityData !== lastIdentityData) {
+        lastBudgetData = currentBudgetData
+        lastIdentityData = currentIdentityData
+        loadDataFromLocalStorage()
+      }
+    }, 1000) // Vérifier chaque seconde
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      clearInterval(intervalId)
+    }
   }, [loadDataFromLocalStorage])
   
   // Effet pour recalculer le nombre de parts quand la situation familiale change, sauf si modifié manuellement
@@ -462,280 +504,288 @@ export default function ImpotRevenuPage() {
   ]
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Impôt sur le revenu</h2>
-          <p className="text-muted-foreground">Calculez votre impôt sur le revenu et optimisez votre fiscalité</p>
+    <SidebarInset>
+      <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+        <div className="flex items-center gap-2 px-4">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="mr-2 h-4" />
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem className="hidden md:block">
+                <BreadcrumbLink href="/fiscalite">Fiscalité</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator className="hidden md:block" />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Impôt sur le revenu</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
         </div>
-        <Button onClick={loadDataFromLocalStorage} variant="outline" size="sm">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Actualiser les données Budget
-        </Button>
-      </div>
+        <div className="ml-auto px-4">
+          <ThemeToggle />
+        </div>
+      </header>
 
-      <div className="grid gap-4 md:grid-cols-9">
-        <Card className="md:col-span-5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Déclaration de revenus
-            </CardTitle>
-            <CardDescription>
-              Saisissez vos différents revenus pour calculer votre impôt. Les revenus du budget sont automatiquement
-              importés.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="situation">Situation familiale</Label>
-                <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted px-3 py-2 text-sm">
-                  {situationFamilialeLabel}
+      <div className="flex flex-1 flex-col gap-6 p-4 pt-0">
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card className="md:col-span-1">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Déclaration de revenus
+              </CardTitle>
+              <CardDescription>
+                Saisissez vos différents revenus pour calculer votre impôt. Les revenus du budget sont automatiquement
+                importés.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="situation">Situation familiale</Label>
+                  <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted px-3 py-2 text-sm">
+                    {situationFamilialeLabel}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Définie dans la section Identité</p>
                 </div>
-                <p className="text-xs text-muted-foreground">Définie dans la section Identité</p>
+                <div className="space-y-2">
+                  <Label htmlFor="parts">Nombre de parts</Label>
+                  <div className="relative">
+                    <Input
+                      id="parts"
+                      type="number"
+                      step="0.5"
+                      min="1"
+                      value={nbParts}
+                      onChange={(e) => {
+                        setNbParts(Number.parseFloat(e.target.value) || 1)
+                        setPartsModifiedManually(true) // Marquer comme modifié manuellement quand l'utilisateur change la valeur
+                      }}
+                      className="pr-8"
+                    />
+                    <button 
+                      type="button"
+                      className="absolute inset-y-0 right-0 flex items-center pr-2 cursor-pointer"
+                      onClick={() => {
+                        // Réinitialiser le nombre de parts à partir des données d'identité
+                        const savedIdentityData = localStorage.getItem(LOCAL_STORAGE_KEY_IDENTITY_PERSONAL)
+                        if (savedIdentityData) {
+                          const parsedIdentity = JSON.parse(savedIdentityData)
+                          const children = parsedIdentity.children || []
+                          const calculatedParts = calculateFiscalParts(situationFamiliale, children.length)
+                          setNbParts(calculatedParts)
+                          setPartsModifiedManually(false)
+                        }
+                      }}
+                      title="Réinitialiser le nombre de parts"
+                    >
+                      <RefreshCw className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Calculé automatiquement mais modifiable</p>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="parts">Nombre de parts</Label>
-                <div className="relative">
-                  <Input
-                    id="parts"
-                    type="number"
-                    step="0.5"
-                    min="1"
-                    value={nbParts}
-                    onChange={(e) => {
-                      setNbParts(Number.parseFloat(e.target.value) || 1)
-                      setPartsModifiedManually(true) // Marquer comme modifié manuellement quand l'utilisateur change la valeur
-                    }}
-                    className="pr-8"
-                  />
-                  <button 
-                    type="button"
-                    className="absolute inset-y-0 right-0 flex items-center pr-2 cursor-pointer"
-                    onClick={() => {
-                      // Réinitialiser le nombre de parts à partir des données d'identité
-                      const savedIdentityData = localStorage.getItem(LOCAL_STORAGE_KEY_IDENTITY_PERSONAL)
-                      if (savedIdentityData) {
-                        const parsedIdentity = JSON.parse(savedIdentityData)
-                        const children = parsedIdentity.children || []
-                        const calculatedParts = calculateFiscalParts(situationFamiliale, children.length)
-                        setNbParts(calculatedParts)
-                        setPartsModifiedManually(false)
-                      }
-                    }}
-                    title="Réinitialiser le nombre de parts"
+              <Separator />
+              <div className="space-y-4 mb-6">
+                <h3 className="text-lg font-medium">Avantages fiscaux</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="deductions">Déductions d'impôt (€)</Label>
+                    <Input
+                      id="deductions"
+                      type="number"
+                      value={deductionsImpot}
+                      onChange={(e) => setDeductionsImpot(Number(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="reductions">Réductions d'impôt (€)</Label>
+                    <Input
+                      id="reductions"
+                      type="number"
+                      value={reductionsImpot}
+                      onChange={(e) => setReductionsImpot(Number(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="credit">Crédit d'impôt (€)</Label>
+                    <Input
+                      id="credit"
+                      type="number"
+                      value={creditImpot}
+                      onChange={(e) => setCreditImpot(Number(e.target.value) || 0)}
+                    />
+                  </div>
+                </div>
+              </div>
+              <Separator />
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-medium">Revenus (importés du budget)</h3>
+                </div>
+                {revenus.map((revenu) => (
+                  <Card
+                    key={revenu.id}
+                    className={`p-4 ${revenu.source === "budget" ? "bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700" : ""}`}
                   >
-                    <RefreshCw className="h-4 w-4 text-muted-foreground hover:text-primary" />
-                  </button>
-                </div>
-                <p className="text-xs text-muted-foreground">Calculé automatiquement mais modifiable</p>
-              </div>
-            </div>
-            <Separator />
-            <div className="space-y-4 mb-6">
-              <h3 className="text-lg font-medium">Avantages fiscaux</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="deductions">Déductions d'impôt (€)</Label>
-                  <Input
-                    id="deductions"
-                    type="number"
-                    value={deductionsImpot}
-                    onChange={(e) => setDeductionsImpot(Number(e.target.value) || 0)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="reductions">Réductions d'impôt (€)</Label>
-                  <Input
-                    id="reductions"
-                    type="number"
-                    value={reductionsImpot}
-                    onChange={(e) => setReductionsImpot(Number(e.target.value) || 0)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="credit">Crédit d'impôt (€)</Label>
-                  <Input
-                    id="credit"
-                    type="number"
-                    value={creditImpot}
-                    onChange={(e) => setCreditImpot(Number(e.target.value) || 0)}
-                  />
-                </div>
-              </div>
-            </div>
-            <Separator />
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium">Revenus (manuels ou importés du budget)</h3>
-                <Button onClick={addRevenu} size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Ajouter un revenu manuel
-                </Button>
-              </div>
-              {revenus.map((revenu) => (
-                <Card
-                  key={revenu.id}
-                  className={`p-4 ${revenu.source === "budget" ? "bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700" : ""}`}
-                >
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 items-end">
-                    <div className={revenu.source === "budget" ? "lg:col-span-5" : "lg:col-span-4"}>
-                      <Label>Type de revenu</Label>
-                      <Select
-                        value={revenu.type}
-                        onValueChange={(value) => updateRevenu(revenu.id, "type", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {typeOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {revenu.source !== "budget" && (
-                      <div className="lg:col-span-4">
-                        <Label>Description</Label>
-                        <Input
-                          value={revenu.description}
-                          onChange={(e) => updateRevenu(revenu.id, "description", e.target.value)}
-                          placeholder="Description du revenu"
-                        />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 items-end">
+                      <div className={revenu.source === "budget" ? "lg:col-span-5" : "lg:col-span-4"}>
+                        <Label>Type de revenu</Label>
+                        <Select
+                          value={revenu.type}
+                          onValueChange={(value) => updateRevenu(revenu.id, "type", value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {typeOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                    )}
-                    <div className={revenu.source === "budget" ? "lg:col-span-5" : "lg:col-span-2"}>
-                      <Label>Montant (€)</Label>
-                      <Input
-                        type="number"
-                        value={revenu.montant}
-                        onChange={(e) => updateRevenu(revenu.id, "montant", Number.parseFloat(e.target.value) || 0)}
-                      />
-                    </div>
-                    {revenu.source !== "budget" && (
-                      <div className="lg:col-span-1">
-                        <Label>Abattement (%)</Label>
+                      {revenu.source !== "budget" && (
+                        <div className="lg:col-span-4">
+                          <Label>Description</Label>
+                          <Input
+                            value={revenu.description}
+                            onChange={(e) => updateRevenu(revenu.id, "description", e.target.value)}
+                            placeholder="Description du revenu"
+                          />
+                        </div>
+                      )}
+                      <div className={revenu.source === "budget" ? "lg:col-span-5" : "lg:col-span-2"}>
+                        <Label>Montant (€)</Label>
                         <Input
                           type="number"
-                          value={revenu.abattement}
-                          onChange={(e) => updateRevenu(revenu.id, "abattement", Number.parseFloat(e.target.value) || 0)}
+                          value={revenu.montant}
+                          onChange={(e) => updateRevenu(revenu.id, "montant", Number.parseFloat(e.target.value) || 0)}
                         />
                       </div>
-                    )}
-                    <div className="lg:col-span-2 flex items-end">
-                      <Button variant="outline" size="icon" onClick={() => deleteRevenu(revenu.id)} className="h-9 w-9">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {revenu.source !== "budget" && (
+                        <div className="lg:col-span-1">
+                          <Label>Abattement (%)</Label>
+                          <Input
+                            type="number"
+                            value={revenu.abattement}
+                            onChange={(e) => updateRevenu(revenu.id, "abattement", Number.parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+                      )}
+                      <div className="lg:col-span-2 flex items-end">
+                        <Button variant="outline" size="icon" onClick={() => deleteRevenu(revenu.id)} className="h-9 w-9">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+
+              {/* La section Calcul de l'impôt a été déplacée vers la colonne de droite */}
+            </CardContent>
+          </Card>
+
+          <Card className="md:col-span-1">
+            <CardHeader>
+              <CardTitle>Analyse fiscale</CardTitle>
+              <CardDescription>Répartition et évolution de vos revenus</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 gap-4 mb-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-sm font-medium">Revenu imposable</div>
+                    <div className="text-2xl font-bold">{revenuImposable.toLocaleString()} €</div>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium">Impôt brut</div>
+                    <div className="text-2xl font-bold">{impotBrut.toLocaleString()} €</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-sm font-medium">Avantages fiscaux</div>
+                    <div className="text-2xl font-bold">{(deductionsImpot + reductionsImpot + creditImpot).toLocaleString()} €</div>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium">Impôt final</div>
+                    <div className={`text-2xl font-bold ${impotApresAvantages < 0 ? 'text-green-600' : ''}`}>
+                      {impotApresAvantages.toLocaleString()} €
+                      {impotApresAvantages < 0 && <span className="text-sm ml-2">(remboursement)</span>}
                     </div>
                   </div>
-                </Card>
-              ))}
-            </div>
-
-            {/* La section Calcul de l'impôt a été déplacée vers la colonne de droite */}
-          </CardContent>
-        </Card>
-
-        <Card className="md:col-span-4">
-          <CardHeader>
-            <CardTitle>Analyse fiscale</CardTitle>
-            <CardDescription>Répartition et évolution de vos revenus</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 gap-4 mb-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="text-sm font-medium">Revenu imposable</div>
-                  <div className="text-2xl font-bold">{revenuImposable.toLocaleString()} €</div>
-                </div>
-                <div>
-                  <div className="text-sm font-medium">Impôt brut</div>
-                  <div className="text-2xl font-bold">{impotBrut.toLocaleString()} €</div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="text-sm font-medium">Avantages fiscaux</div>
-                  <div className="text-2xl font-bold">{(deductionsImpot + reductionsImpot + creditImpot).toLocaleString()} €</div>
-                </div>
-                <div>
-                  <div className="text-sm font-medium">Impôt final</div>
-                  <div className={`text-2xl font-bold ${impotApresAvantages < 0 ? 'text-green-600' : ''}`}>
-                    {impotApresAvantages.toLocaleString()} €
-                    {impotApresAvantages < 0 && <span className="text-sm ml-2">(remboursement)</span>}
+              
+              <Card className="bg-muted/50">
+                <CardHeader className="p-4 pb-0">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Calculator className="h-5 w-5" />
+                    Calcul de l'impôt
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 p-4">
+                  <div className="flex justify-between">
+                    <span>Revenu brut global</span>
+                    <span className="font-medium">
+                      {revenuBrutGlobal.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
+                    </span>
                   </div>
-                </div>
-              </div>
-            </div>
-            
-            <Card className="bg-muted/50">
-              <CardHeader className="p-4 pb-0">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Calculator className="h-5 w-5" />
-                  Calcul de l'impôt
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 p-4">
-                <div className="flex justify-between">
-                  <span>Revenu brut global</span>
-                  <span className="font-medium">
-                    {revenuBrutGlobal.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Abattements</span>
-                  <span className="font-medium">
-                    -{abattementsTotal.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Revenu net global</span>
-                  <span className="font-medium">
-                    {revenuNetGlobal.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
-                  </span>
-                </div>
-                <Separator />
-                <div className="flex justify-between">
-                  <span>Déductions d'impôt</span>
-                  <span className="font-medium">
-                    -{deductionsImpot.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Réductions d'impôt</span>
-                  <span className="font-medium">
-                    -{reductionsImpot.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Crédit d'impôt</span>
-                  <span className="font-medium">
-                    -{creditImpot.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
-                  </span>
-                </div>
-                <Separator />
-                <div className="flex justify-between text-lg font-semibold">
-                  <span>Impôt sur le revenu</span>
-                  <span className={impotApresAvantages < 0 ? "text-green-600" : "text-red-600"}>
-                    {impotApresAvantages.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
-                    {impotApresAvantages < 0 && " (remboursement)"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Revenu net après impôt</span>
-                  <span className="text-green-600">
-                    {(revenuImposable - impotApresAvantages).toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          </CardContent>
-        </Card>
+                  <div className="flex justify-between">
+                    <span>Abattements</span>
+                    <span className="font-medium">
+                      -{abattementsTotal.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Revenu net global</span>
+                    <span className="font-medium">
+                      {revenuNetGlobal.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
+                    </span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between">
+                    <span>Déductions d'impôt</span>
+                    <span className="font-medium">
+                      -{deductionsImpot.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Réductions d'impôt</span>
+                    <span className="font-medium">
+                      -{reductionsImpot.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Crédit d'impôt</span>
+                    <span className="font-medium">
+                      -{creditImpot.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
+                    </span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between text-lg font-semibold">
+                    <span>Impôt sur le revenu</span>
+                    <span className={impotApresAvantages < 0 ? "text-green-600" : "text-red-600"}>
+                      {impotApresAvantages.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
+                      {impotApresAvantages < 0 && " (remboursement)"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Revenu net après impôt</span>
+                    <span className="text-green-600">
+                      {(revenuImposable - impotApresAvantages).toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </div>
+    </SidebarInset>
   )
 }
