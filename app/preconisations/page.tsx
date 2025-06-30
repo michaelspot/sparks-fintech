@@ -58,6 +58,12 @@ export default function RecommendationsPage() {
   // État pour stocker les priorités personnalisées
   const [customPriorities, setCustomPriorities] = useState<Record<number, "Haute" | "Moyenne" | "Basse">>({});
   
+  // États pour l'export PDF
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [pdfData, setPdfData] = useState<{pdf: string, filename: string} | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  
   // Local storage keys
   const LOCAL_STORAGE_KEY_SELECTED = "selectedPreconisations"
   const LOCAL_STORAGE_KEY_PRIORITIES = "customPriorities"
@@ -71,6 +77,238 @@ export default function RecommendationsPage() {
         return [...prev, id];
       }
     });
+  };
+
+  // Fonction pour exporter vers Google Docs et générer le PDF
+  const exportToPDF = async () => {
+    setExportDialogOpen(true);
+    setIsExporting(true);
+    setExportError(null);
+    setPdfData(null);
+    
+    try {
+      // Utiliser les données du localStorage ou les données fallback
+      const dataToUse = Object.keys(clientData).length > 0 ? clientData : fallbackData;
+      
+      // Récupérer les préconisations sélectionnées avec leurs priorités
+      const selectedPreconisationsDetails = preconisations
+        .filter(preco => selectedPreconisations.includes(preco.id))
+        .map(preco => ({
+          ...preco,
+          priority: customPriorities[preco.id] || preco.priority
+        }));
+      
+      // Préparer les variables pour le Google Docs
+      const variables: Record<string, string> = {
+        // Informations client de base
+        titre_client: dataToUse.profile?.titre || "Monsieur/Madame",
+        nom_client: dataToUse.profile?.nom || "Client",
+        prenom_client: dataToUse.profile?.prenom || "",
+        situation_professionnelle_client: dataToUse.profile?.profession || "Non spécifié",
+        age_client: dataToUse.profile?.age ? `${dataToUse.profile.age} ans` : "Non spécifié",
+        situation_matrimoniale_client: dataToUse.profile?.situationFamiliale || "Non spécifié",
+        regime_matrimonial_client: dataToUse.profile?.regimeMatrimonial || "Non spécifié",
+        
+        // Informations fiscales
+        tranche_imposition: dataToUse.fiscal?.trancheMarginaleImposition ? `${dataToUse.fiscal.trancheMarginaleImposition}%` : "Non spécifié",
+        revenu_global: dataToUse.fiscal?.revenuGlobal ? `${dataToUse.fiscal.revenuGlobal.toLocaleString()} €` : "Non spécifié",
+        
+        // Informations patrimoniales
+        valeur_residence_principale: dataToUse.patrimoine?.valeurResidencePrincipale ? `${dataToUse.patrimoine.valeurResidencePrincipale.toLocaleString()} €` : "Non spécifié",
+        valeur_patrimoine_financier: dataToUse.patrimoine?.valeurPatrimoineFinancier ? `${dataToUse.patrimoine.valeurPatrimoineFinancier.toLocaleString()} €` : "Non spécifié",
+        valeur_patrimoine_immobilier: dataToUse.patrimoine?.valeurPatrimoineImmobilier ? `${dataToUse.patrimoine.valeurPatrimoineImmobilier.toLocaleString()} €` : "Non spécifié",
+        liquidites_disponibles: dataToUse.patrimoine?.liquiditesDisponibles ? `${dataToUse.patrimoine.liquiditesDisponibles.toLocaleString()} €` : "Non spécifié",
+        
+        // Nombre de préconisations
+        nombre_preconisations: selectedPreconisationsDetails.length.toString(),
+      };
+      
+      // Ajouter la date de l'étude
+      variables['date_etude'] = new Date().toLocaleDateString('fr-FR');
+      
+      // Log des données client utilisées
+      console.log('Données client utilisées:', dataToUse.profile);
+      
+      // Ajouter les préconisations individuellement
+      selectedPreconisationsDetails.forEach((preco, index) => {
+        const num = index + 1;
+        variables[`preconisation_${num}_titre`] = preco.title;
+        variables[`preconisation_${num}_description`] = preco.description;
+        variables[`preconisation_${num}_priorite`] = preco.priority;
+        variables[`preconisation_${num}_categorie`] = preco.category;
+        variables[`preconisation_${num}_impact`] = preco.impact;
+        
+        // Avantages
+        if (preco.advantages && preco.advantages.length > 0) {
+          preco.advantages.forEach((adv, advIndex) => {
+            variables[`preconisation_${num}_avantage_${advIndex + 1}`] = adv;
+          });
+        }
+        
+        // Inconvénients
+        if (preco.disadvantages && preco.disadvantages.length > 0) {
+          preco.disadvantages.forEach((disadv, disadvIndex) => {
+            variables[`preconisation_${num}_inconvenient_${disadvIndex + 1}`] = disadv;
+          });
+        }
+      });
+      
+      // Créer une section complète avec toutes les préconisations pour la variable {{preconisations_client}}
+      let preconisationsClientText = '';
+      
+      selectedPreconisationsDetails.forEach((preco, index) => {
+        // Ajouter un séparateur entre les préconisations
+        if (index > 0) {
+          preconisationsClientText += '\n\n---\n\n';
+        }
+        
+        // Titre et description
+        preconisationsClientText += `## ${index + 1}. ${preco.title}\n\n`;
+        preconisationsClientText += `${preco.description}\n\n`;
+        
+        // Priorité, catégorie et impact
+        preconisationsClientText += `**Priorité:** ${preco.priority}\n`;
+        preconisationsClientText += `**Catégorie:** ${preco.category}\n`;
+        preconisationsClientText += `**Impact:** ${preco.impact}\n\n`;
+        
+        // Avantages
+        if (preco.advantages && preco.advantages.length > 0) {
+          preconisationsClientText += `**Avantages:**\n`;
+          preco.advantages.forEach((adv) => {
+            preconisationsClientText += `- ${adv}\n`;
+          });
+          preconisationsClientText += '\n';
+        }
+        
+        // Inconvénients
+        if (preco.disadvantages && preco.disadvantages.length > 0) {
+          preconisationsClientText += `**Inconvénients:**\n`;
+          preco.disadvantages.forEach((disadv) => {
+            preconisationsClientText += `- ${disadv}\n`;
+          });
+        }
+      });
+      
+      // Ajouter la section complète des préconisations
+      variables['preconisations_client'] = preconisationsClientText;
+      
+      // Utiliser les données réelles du client pour les revenus et charges
+      // Récupérer les revenus et charges du client depuis la structure correcte
+      const revenus = dataToUse.finances?.revenus || [];
+      const charges = dataToUse.finances?.charges || [];
+      
+      console.log('Revenus utilisés:', revenus);
+      console.log('Charges utilisées:', charges);
+      
+      // Définir les interfaces pour les revenus et charges
+      interface FinancialItem {
+        intitule?: string;
+        montant?: number;
+      }
+      
+      // Calculer les totaux
+      const totalRevenus = revenus.reduce((sum: number, item: FinancialItem) => sum + (item.montant || 0), 0);
+      const totalCharges = charges.reduce((sum: number, item: FinancialItem) => sum + (item.montant || 0), 0);
+      
+      // Ajouter les revenus aux variables
+      revenus.forEach((revenu: FinancialItem, index: number) => {
+        if (index < 10) { // Limiter à 10 entrées
+          variables[`intitule_revenu${index + 1}`] = revenu.intitule || '';
+          variables[`montant_revenu${index + 1}`] = revenu.montant ? `${revenu.montant.toLocaleString()} €` : '';
+        }
+      });
+      
+      // Ajouter les charges aux variables
+      charges.forEach((charge: FinancialItem, index: number) => {
+        if (index < 10) { // Limiter à 10 entrées
+          variables[`intitule_charge${index + 1}`] = charge.intitule || '';
+          variables[`montant_charge${index + 1}`] = charge.montant ? `${charge.montant.toLocaleString()} €` : '';
+        }
+      });
+      
+      // Ajouter les totaux
+      variables['montant_total__revenus'] = `${totalRevenus.toLocaleString()} €`;
+      variables['montant_total__charges'] = `${totalCharges.toLocaleString()} €`;
+      
+      // Vider les variables non utilisées (pour les tableaux)
+      for (let i = 1; i <= 10; i++) {
+        if (!variables[`intitule_revenu${i}`]) {
+          variables[`intitule_revenu${i}`] = "";
+          variables[`montant_revenu${i}`] = "";
+        }
+        if (!variables[`intitule_charge${i}`]) {
+          variables[`intitule_charge${i}`] = "";
+          variables[`montant_charge${i}`] = "";
+        }
+      }
+      
+      // Appel à l'API Google Apps Script directement
+      // URL de votre Apps Script déployé
+      const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwquTkwi6vWR4CLQtltQpeKv90SEFj-hHvtsFJ9xmkSBlm_6TzOcfAHBIPu1Xc7lYTUuw/exec';
+      
+      console.log('Données envoyées au script:', { variables });
+      console.log('Tentative de fetch direct vers:', APPS_SCRIPT_URL);
+      
+      // Solution basée sur le forum Reddit: utiliser Content-Type text/plain
+      const response = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain',  // Important pour éviter les requêtes preflight CORS
+        },
+        body: JSON.stringify({ variables }),
+      });
+      
+      console.log('Réponse du serveur:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log('Résultat parsé:', result);
+      
+      if (result.success) {
+        setPdfData({
+          pdf: result.pdf,
+          filename: result.filename
+        });
+      } else {
+        setExportError(result.error || 'Erreur lors de la génération du PDF');
+      }
+      
+    } catch (error) {
+      console.error('Erreur lors de l\'export:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      setExportError(`Erreur de connexion: ${errorMessage}`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+  
+  // Fonction pour télécharger le PDF
+  const downloadPDF = () => {
+    if (!pdfData) return;
+    
+    const byteCharacters = atob(pdfData.pdf);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: 'application/pdf' });
+    
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = pdfData.filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    // Fermer le dialog après téléchargement
+    setExportDialogOpen(false);
+    setPdfData(null);
   };
 
   // Fonction pour changer la priorité d'une préconisation
@@ -185,7 +423,7 @@ export default function RecommendationsPage() {
           </Breadcrumb>
         </div>
         <div className="ml-auto px-4 flex items-center gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={exportToPDF}>
             <Download className="w-4 h-4 mr-2" />
             Export PDF
           </Button>
@@ -391,6 +629,86 @@ export default function RecommendationsPage() {
             )}
           </div>
         )}
+        
+        {/* Dialog d'export PDF */}
+        <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Export de l'étude patrimoniale</DialogTitle>
+              <DialogDescription>
+                Génération du document PDF personnalisé avec vos préconisations sélectionnées
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              {isExporting && (
+                <div className="flex flex-col items-center justify-center p-8">
+                  <div className="h-12 w-12 rounded-full border-4 border-t-blue-600 border-blue-200 animate-spin mb-4"></div>
+                  <h3 className="text-lg font-medium mb-2">Génération en cours...</h3>
+                  <p className="text-center text-muted-foreground">
+                    Traitement des données et création du document PDF personnalisé
+                  </p>
+                </div>
+              )}
+              
+              {exportError && (
+                <div className="flex flex-col items-center justify-center p-8">
+                  <div className="h-12 w-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-4">
+                    <X className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-lg font-medium mb-2 text-red-600">Erreur lors de l'export</h3>
+                  <p className="text-center text-muted-foreground mb-4">{exportError}</p>
+                  <Button onClick={() => setExportDialogOpen(false)} variant="outline">
+                    Fermer
+                  </Button>
+                </div>
+              )}
+              
+              {pdfData && (
+                <div className="space-y-4">
+                  <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-green-300 bg-green-50 dark:bg-green-950 rounded-lg">
+                    <div className="h-12 w-12 rounded-full bg-green-100 text-green-600 flex items-center justify-center mb-4">
+                      <Check className="h-6 w-6" />
+                    </div>
+                    <h3 className="text-lg font-medium mb-2 text-green-600">Document généré avec succès</h3>
+                    <p className="text-center text-muted-foreground mb-4">
+                      Votre étude patrimoniale personnalisée est prête à être téléchargée
+                    </p>
+                  </div>
+                  
+                  {/* Résumé des préconisations incluses */}
+                  <div className="bg-muted p-4 rounded-lg">
+                    <h4 className="font-medium mb-3">Préconisations incluses dans le document :</h4>
+                    <div className="space-y-2">
+                      {preconisations
+                        .filter(preco => selectedPreconisations.includes(preco.id))
+                        .map(preco => (
+                          <div key={preco.id} className="flex items-center justify-between text-sm">
+                            <span>{preco.title}</span>
+                            <Badge className={`text-xs ${getPriorityColor(customPriorities[preco.id] || preco.priority)}`}>
+                              {customPriorities[preco.id] || preco.priority}
+                            </Badge>
+                          </div>
+                        ))
+                      }
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end space-x-2">
+                    <Button onClick={() => setExportDialogOpen(false)} variant="outline">
+                      Fermer
+                    </Button>
+                    <Button onClick={downloadPDF}>
+                      <Download className="w-4 h-4 mr-2" />
+                      Télécharger le PDF
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+        
         <Card className="mt-6">
           <CardHeader>
             <CardTitle>Actions Recommandées</CardTitle>
