@@ -14,7 +14,10 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
+import { Spinner } from "@/components/ui/spinner"
 import { Lightbulb, FileText, Download, Volume2, TrendingUp, Shield, PiggyBank, Users, Gift, HeartHandshake, Check, ShoppingCart, X } from "lucide-react"
+import { exportToPDF as exportToPDFExternal } from "@/lib/pdf-export"
+import { loadTestDataToLocalStorage, checkCurrentData, clearTestData } from "@/lib/test-data"
 
 export default function RecommendationsPage() {
   // Utilisation du hook pour récupérer les données du client depuis le localStorage
@@ -98,36 +101,679 @@ export default function RecommendationsPage() {
           priority: customPriorities[preco.id] || preco.priority
         }));
       
-      // Préparer les variables pour le Google Docs
-      const variables: Record<string, string> = {
+      // Interface pour les données client
+      interface ClientData {
+        // Informations de base
+        title?: string;
+        firstName?: string;
+        lastName?: string;
+        birthName?: string;
+        age?: string | number;
+        
+        // Informations du conjoint
+        spouseTitle?: string;
+        spouseFirstName?: string;
+        spouseLastName?: string;
+        spouseBirthName?: string;
+        spouseAge?: string | number;
+        
+        // Situation familiale
+        maritalStatus?: string;
+        marriageDate?: string;
+        marriagePlace?: string;
+        matrimonialRegime?: string;
+        
+        // Informations professionnelles
+        profession?: string;
+        spouseProfession?: string;
+        company?: string;
+        spouseCompany?: string;
+        
+        // Informations personnelles
+        birthDate?: string;
+        city?: string;
+        birthPostalCode?: string;
+        nationality?: string;
+        
+        // Informations du conjoint
+        spouseBirthDate?: string;
+        spouseCity?: string;
+        spouseBirthPostalCode?: string;
+        spouseNationality?: string;
+        
+        // Enfants
+        children?: any[];
+      }
+      
+      // Récupérer les données client depuis le localStorage avec la clé 'identityPersonalInfo'
+      let clientInfo: ClientData = {};
+      try {
+        const identityDataStr = localStorage.getItem('identityPersonalInfo');
+        if (identityDataStr) {
+          clientInfo = JSON.parse(identityDataStr);
+          console.log('🔍 Données identité trouvées dans le localStorage:', clientInfo);
+          console.log('🔍 Title:', clientInfo.title);
+          console.log('🔍 SpouseTitle:', clientInfo.spouseTitle);
+        } else {
+          console.warn('Aucune donnée identité trouvée dans le localStorage avec la clé identityPersonalInfo');
+        }
+      } catch (error) {
+        console.error('Erreur lors de la lecture des données identité:', error);
+      }
+
+      // Fonction utilitaire pour formater les dates au format jj/mm/aaaa
+      const formatDate = (dateString: string): string => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return dateString;
+        return date.toLocaleDateString('fr-FR');
+      };
+
+      // Fonction utilitaire pour formater les titres
+      const formatTitle = (title: string): string => {
+        if (!title) return '';
+        return title === 'monsieur' ? 'Monsieur' : title === 'madame' ? 'Madame' : title;
+      };
+
+      // Fonction utilitaire pour formater les villes (première lettre majuscule)
+      const formatCity = (city: string): string => {
+        if (!city) return '';
+        return city.charAt(0).toUpperCase() + city.slice(1).toLowerCase();
+      };
+
+      // Fonction utilitaire pour obtenir le libellé CSP
+      const getCspLabel = (cspValue: string): string => {
+        if (!cspValue) return '';
+        const cspOptions = [
+          { value: "11", label: "Agriculteurs sur petite exploitation" },
+          { value: "12", label: "Agriculteurs sur moyenne exploitation" },
+          { value: "13", label: "Agriculteurs sur grande exploitation" },
+          { value: "21", label: "Artisans" },
+          { value: "22", label: "Commerçants et assimilés" },
+          { value: "23", label: "Chefs d'entreprise de 10 salariés ou plus" },
+          { value: "31", label: "Professions libérales" },
+          { value: "33", label: "Cadres de la fonction publique" },
+          { value: "34", label: "Professeurs, professions scientifiques" },
+          { value: "35", label: "Professions de l'information, des arts et des spectacles" },
+          { value: "37", label: "Cadres administratifs et commerciaux d'entreprise" },
+          { value: "38", label: "Ingénieurs et cadres techniques d'entreprise" },
+          { value: "42", label: "Professeurs des écoles, instituteurs et assimilés" },
+          { value: "43", label: "Professions intermédiaires de la santé et du travail social" },
+          { value: "44", label: "Clergé, religieux" },
+          { value: "45", label: "Professions intermédiaires administratives de la fonction publique" },
+          { value: "46", label: "Professions intermédiaires administratives et commerciales des entreprises" },
+          { value: "47", label: "Techniciens" },
+          { value: "48", label: "Contremaîtres, agents de maîtrise" },
+          { value: "52", label: "Employés civils et agents de service de la fonction publique" },
+          { value: "53", label: "Policiers et militaires" },
+          { value: "54", label: "Employés administratifs d'entreprise" },
+          { value: "55", label: "Employés de commerce" },
+          { value: "56", label: "Personnels des services directs aux particuliers" },
+          { value: "62", label: "Ouvriers qualifiés de type industriel" },
+          { value: "63", label: "Ouvriers qualifiés de type artisanal" },
+          { value: "64", label: "Chauffeurs" },
+          { value: "65", label: "Ouvriers qualifiés de la manutention, du magasinage et du transport" },
+          { value: "67", label: "Ouvriers non qualifiés de type industriel" },
+          { value: "68", label: "Ouvriers non qualifiés de type artisanal" },
+          { value: "69", label: "Ouvriers agricoles" },
+          { value: "71", label: "Anciens agriculteurs exploitants" },
+          { value: "72", label: "Anciens artisans, commerçants, chefs d'entreprise" },
+          { value: "74", label: "Anciens cadres" },
+          { value: "75", label: "Anciennes professions intermédiaires" },
+          { value: "77", label: "Anciens employés" },
+          { value: "78", label: "Anciens ouvriers" },
+          { value: "81", label: "Chômeurs n'ayant jamais travaillé" },
+          { value: "83", label: "Militaires du contingent" },
+          { value: "84", label: "Elèves, étudiants" },
+          { value: "85", label: "Personnes diverses sans activité professionnelle de moins de 60 ans" },
+          { value: "86", label: "Personnes diverses sans activité professionnelle de 60 ans et plus" }
+        ];
+        const option = cspOptions.find(opt => opt.value === cspValue);
+        return option ? option.label : cspValue;
+      };
+
+      // Fonction utilitaire pour obtenir le libellé du statut marital accordé selon le genre
+      const getMaritalStatusLabel = (status: string, title: string): string => {
+        if (!status) return '';
+        const isFeminine = title === 'madame' || title === 'Madame';
+        
+        const statusMap: { [key: string]: string } = {
+          'marie': isFeminine ? 'Mariée' : 'Marié',
+          'celibataire': 'Célibataire',
+          'divorce': isFeminine ? 'Divorcée' : 'Divorcé',
+          'veuf': isFeminine ? 'Veuve' : 'Veuf',
+          'pacs': isFeminine ? 'Pacsée' : 'Pacsé'
+        };
+        return statusMap[status] || status;
+      };
+
+      // Fonction utilitaire pour appliquer les préfixes de formatage
+      // 📝 GUIDE DES PRÉFIXES DISPONIBLES DANS GOOGLE DOCS :
+      // {{M-variable}} = Majuscule puis minuscule (ex: "MONSIEUR" → "Monsieur")
+      // {{m-variable}} = tout en minuscule (ex: "MONSIEUR" → "monsieur")
+      // {{MM-variable}} = tout en majuscule (ex: "monsieur" → "MONSIEUR")
+      // {{cap-variable}} = Première lettre de chaque mot en majuscule (ex: "jean dupont" → "Jean Dupont")
+      // {{eu-variable}} = format euros (ex: "1000" → "1 000,00 €")
+      // {{pct-variable}} = format pourcentage (ex: "15" → "15%")
+      // {{nb-variable}} = format nombre avec espaces (ex: "1000" → "1 000")
+      // {{k-variable}} = format milliers (ex: "1000" → "1k")
+      // {{ord-variable}} = format ordinal (ex: "1" → "1er", "2" → "2ème")
+      const applyFormatPrefix = (value: string, prefix: string): string => {
+        if (!value) return '';
+        
+        switch (prefix) {
+          case 'M': // Majuscule puis minuscule
+            return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+          case 'm': // tout en minuscule
+            return value.toLowerCase();
+          case 'MM': // tout en majuscule
+            return value.toUpperCase();
+          case 'cap': // Première lettre de chaque mot en majuscule
+            return value.replace(/\b\w/g, l => l.toUpperCase());
+          case 'eu': // format euros - arrondi à l'entier supérieur
+            const numValue = parseFloat(value.replace(/[^0-9.-]/g, ''));
+            if (isNaN(numValue)) return value;
+            const roundedValue = Math.ceil(numValue); // Arrondi à l'entier supérieur
+            return `${roundedValue.toLocaleString('fr-FR')} €`;
+          case 'pct': // format pourcentage - arrondi à l'entier
+            const pctValue = parseFloat(value.replace(/[^0-9.-]/g, ''));
+            if (isNaN(pctValue)) return value;
+            const roundedPct = Math.round(pctValue); // Arrondi à l'entier
+            return `${roundedPct} %`;
+          case 'nb': // format nombre avec espaces
+            const nbValue = parseFloat(value.replace(/[^0-9.-]/g, ''));
+            return isNaN(nbValue) ? value : nbValue.toLocaleString('fr-FR');
+          case 'k': // format milliers
+            const kValue = parseFloat(value.replace(/[^0-9.-]/g, ''));
+            return isNaN(kValue) ? value : kValue >= 1000 ? `${Math.round(kValue/1000)}k` : kValue.toString();
+          case 'ord': // format ordinal
+            const ordValue = parseInt(value.replace(/[^0-9]/g, ''));
+            if (isNaN(ordValue)) return value;
+            if (ordValue === 1) return '1er';
+            return `${ordValue}ème`;
+          default:
+            return value;
+        }
+      };
+
+      // Fonction pour générer toutes les variantes d'une variable avec préfixes
+      const generateVariableVariants = (key: string, value: string): Record<string, string> => {
+        const variants: Record<string, string> = {};
+        const prefixes = ['M', 'm', 'MM', 'cap', 'eu', 'pct', 'nb', 'k', 'ord'];
+        
+        // Variable de base
+        variants[key] = value;
+        
+        // Variantes avec préfixes
+        prefixes.forEach(prefix => {
+          variants[`${prefix}-${key}`] = applyFormatPrefix(value, prefix);
+        });
+        
+        return variants;
+      };
+
+      // 🎯 FONCTION DE RENDU CONDITIONNEL POUR GOOGLE DOCS
+      // Syntaxe : {{'texte fixe' & {{variable}} & 'autre texte'}}
+      // Si la variable a une valeur → affiche tout le bloc
+      // Si la variable est vide/null → n'affiche rien du tout
+      // 
+      // Exemples d'utilisation :
+      // {{'Vous avez ' & {{nbChildren}} & ' enfants à charge :'}} 
+      // {{'(' & {{matrimonialRegime}} & ')'}}
+      // {{'Né(e) le ' & {{birthDate}} & ' à ' & {{city}}}}
+      const generateConditionalBlocks = (baseVariables: Record<string, string>, clientInfo: any): Record<string, string> => {
+        const conditionalBlocks: Record<string, string> = {};
+        
+        // Fonction utilitaire pour calculer l'âge à partir de la date de naissance
+        const calculateAgeFromBirthDate = (birthDate: string): string => {
+          if (!birthDate) return 'Age non spécifié';
+          
+          try {
+            const birth = new Date(birthDate);
+            const today = new Date();
+            let age = today.getFullYear() - birth.getFullYear();
+            const monthDiff = today.getMonth() - birth.getMonth();
+            
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+              age--;
+            }
+            
+            return age.toString();
+          } catch (error) {
+            return 'Age non spécifié';
+          }
+        };
+        
+        // Bloc conditionnel pour les enfants - VERSION DÉTAILLÉE
+        const children = clientInfo.children || [];
+        if (children.length > 0) {
+          const childrenCount = children.length;
+          let childrenText = `Vous avez ${childrenCount} enfant${childrenCount > 1 ? 's' : ''} à charge :\n`;
+          
+          children.forEach((child: any, index: number) => {
+            const childName = child.firstName || `Enfant ${index + 1}`;
+            
+            // Calculer l'âge à partir de la date de naissance ou utiliser l'âge saisi
+            let childAge = 'Age non spécifié';
+            if (child.birthDate) {
+              childAge = calculateAgeFromBirthDate(child.birthDate);
+            } else if (child.age) {
+              childAge = child.age.toString();
+            }
+            
+            // Déterminer la parenté
+            let parentageText = '';
+            if (child.parentage === 'commun') {
+              parentageText = 'enfant commun';
+            } else if (child.parentage === 'propre_parent1') {
+              const parent1Name = clientInfo.firstName || 'Parent 1';
+              parentageText = `enfant propre à ${parent1Name}`;
+            } else if (child.parentage === 'propre_parent2') {
+              const parent2Name = clientInfo.spouseFirstName || 'Parent 2';
+              parentageText = `enfant propre à ${parent2Name}`;
+            } else {
+              parentageText = 'parenté non spécifiée';
+            }
+            
+            childrenText += `- ${childName}, qui a ${childAge} ans, ${parentageText}`;
+            if (index < children.length - 1) {
+              childrenText += '\n';
+            }
+          });
+          
+          conditionalBlocks['childrenBlock'] = childrenText;
+        } else {
+          conditionalBlocks['childrenBlock'] = '';
+        }
+        
+        // Bloc conditionnel pour le régime matrimonial
+        const matrimonialRegime = baseVariables.matrimonialRegime;
+        if (matrimonialRegime && matrimonialRegime.trim()) {
+          conditionalBlocks['matrimonialRegimeBlock'] = `(${matrimonialRegime})`;
+        } else {
+          conditionalBlocks['matrimonialRegimeBlock'] = '';
+        }
+        
+        // Bloc conditionnel pour la date et lieu de naissance
+        const birthDate = baseVariables.birthDate;
+        const city = baseVariables.city;
+        if (birthDate && city) {
+          conditionalBlocks['birthInfoBlock'] = `Né(e) le ${birthDate} à ${city}`;
+        } else if (birthDate) {
+          conditionalBlocks['birthInfoBlock'] = `Né(e) le ${birthDate}`;
+        } else {
+          conditionalBlocks['birthInfoBlock'] = '';
+        }
+        
+        // Bloc conditionnel pour le conjoint
+        const spouseFullName = baseVariables.spouseFullName;
+        if (spouseFullName && spouseFullName.trim()) {
+          conditionalBlocks['spouseBlock'] = `Conjoint : ${spouseFullName}`;
+        } else {
+          conditionalBlocks['spouseBlock'] = '';
+        }
+        
+        // Bloc conditionnel pour la profession
+        const profession = baseVariables.profession;
+        const company = baseVariables.company;
+        if (profession && profession !== 'Non spécifié') {
+          if (company && company.trim()) {
+            conditionalBlocks['professionBlock'] = `${profession} chez ${company}`;
+          } else {
+            conditionalBlocks['professionBlock'] = profession;
+          }
+        } else {
+          conditionalBlocks['professionBlock'] = '';
+        }
+        
+        return conditionalBlocks;
+      };
+
+      // Fonction utilitaire pour obtenir le libellé du régime matrimonial
+      const getMatrimonialRegimeLabel = (regime: string): string => {
+        if (!regime) return '';
+        const regimeMap: { [key: string]: string } = {
+          'communaute-reduite': 'Communauté réduite aux acquêts (depuis 1er février 1966)',
+          'communaute-biens': 'Communauté de biens (avant 1er février 1966)',
+          'separation-biens': 'Séparation de biens',
+          'participation-acquets': 'Participation aux acquêts',
+          'communaute-universelle': 'Communauté universelle',
+          'indivision': 'Régime de l\'indivision',
+          'separation': 'Régime de séparation'
+        };
+        return regimeMap[regime] || regime;
+      };
+
+      // Préparer les variables pour le Google Docs - Format simple {{variable}}
+      // 📝 Pour ajouter une nouvelle variable :
+      // 1. Ajoutez-la ici : 'nouvelleVariable': clientInfo.nouvelleVariable || "valeur par défaut",
+      // 2. Dans Google Docs, utilisez : {{nouvelleVariable}}
+      // Logs de débogage pour les titres
+      const titleFormatted = formatTitle(clientInfo.title || "");
+      const spouseTitleFormatted = formatTitle(clientInfo.spouseTitle || "");
+      console.log('🔍 Title avant formatage:', clientInfo.title);
+      console.log('🔍 Title après formatage:', titleFormatted);
+      console.log('🔍 SpouseTitle avant formatage:', clientInfo.spouseTitle);
+      console.log('🔍 SpouseTitle après formatage:', spouseTitleFormatted);
+
+      // Définir les variables de base
+      const baseVariables: Record<string, string> = {
         // Informations client de base
-        titre_client: dataToUse.profile?.titre || "Monsieur/Madame",
-        nom_client: dataToUse.profile?.nom || "Client",
-        prenom_client: dataToUse.profile?.prenom || "",
-        situation_professionnelle_client: dataToUse.profile?.profession || "Non spécifié",
-        age_client: dataToUse.profile?.age ? `${dataToUse.profile.age} ans` : "Non spécifié",
-        situation_matrimoniale_client: dataToUse.profile?.situationFamiliale || "Non spécifié",
-        regime_matrimonial_client: dataToUse.profile?.regimeMatrimonial || "Non spécifié",
+        'firstName': clientInfo.firstName || "",
+        'lastName': clientInfo.lastName || "Client",
+        'title': titleFormatted,
+        'birthName': clientInfo.birthName || "",
+        'age': clientInfo.age ? `${clientInfo.age} ans` : "Non spécifié",
+        'birthDate': formatDate(clientInfo.birthDate || ""),
+        'city': formatCity(clientInfo.city || ""),
+        'country': (clientInfo as any).country || "France",
+        'nationality': clientInfo.nationality || "Française",
         
-        // Informations fiscales
-        tranche_imposition: dataToUse.fiscal?.trancheMarginaleImposition ? `${dataToUse.fiscal.trancheMarginaleImposition}%` : "Non spécifié",
-        revenu_global: dataToUse.fiscal?.revenuGlobal ? `${dataToUse.fiscal.revenuGlobal.toLocaleString()} €` : "Non spécifié",
+        // Informations professionnelles
+        'profession': clientInfo.profession || "Non spécifié",
+        'company': clientInfo.company || "",
+        'csp': getCspLabel((clientInfo as any).csp || ""),
+        'retirementAge': (clientInfo as any).retirementAge || "",
         
-        // Informations patrimoniales
-        valeur_residence_principale: dataToUse.patrimoine?.valeurResidencePrincipale ? `${dataToUse.patrimoine.valeurResidencePrincipale.toLocaleString()} €` : "Non spécifié",
-        valeur_patrimoine_financier: dataToUse.patrimoine?.valeurPatrimoineFinancier ? `${dataToUse.patrimoine.valeurPatrimoineFinancier.toLocaleString()} €` : "Non spécifié",
-        valeur_patrimoine_immobilier: dataToUse.patrimoine?.valeurPatrimoineImmobilier ? `${dataToUse.patrimoine.valeurPatrimoineImmobilier.toLocaleString()} €` : "Non spécifié",
-        liquidites_disponibles: dataToUse.patrimoine?.liquiditesDisponibles ? `${dataToUse.patrimoine.liquiditesDisponibles.toLocaleString()} €` : "Non spécifié",
+        // Situation familiale
+        'maritalStatus': getMaritalStatusLabel(clientInfo.maritalStatus || "", clientInfo.title || ""),
+        'matrimonialRegime': getMatrimonialRegimeLabel(clientInfo.matrimonialRegime || ""),
+        'marriageDate': formatDate(clientInfo.marriageDate || ""),
+        'marriagePlace': clientInfo.marriagePlace || "",
         
-        // Nombre de préconisations
-        nombre_preconisations: selectedPreconisationsDetails.length.toString(),
+        // Informations conjoint
+        'spouseTitle': spouseTitleFormatted,
+        'spouseFirstName': clientInfo.spouseFirstName || "",
+        'spouseLastName': clientInfo.spouseLastName || "",
+        'spouseBirthName': clientInfo.spouseBirthName || "",
+        'spouseAge': clientInfo.spouseAge ? `${clientInfo.spouseAge} ans` : "",
+        'spouseProfession': clientInfo.spouseProfession || "",
+        'spouseCompany': clientInfo.spouseCompany || "",
+        'spouseBirthDate': formatDate(clientInfo.spouseBirthDate || ""),
+        'spouseCity': formatCity(clientInfo.spouseCity || ""),
+        'spouseCountry': (clientInfo as any).spouseCountry || "France",
+        'spouseNationality': clientInfo.spouseNationality || "Française",
+        'spouseCsp': getCspLabel((clientInfo as any).spouseCsp || ""),
+        'spouseRetirementAge': (clientInfo as any).spouseRetirementAge || "",
+        
+        // Informations supplémentaires
+        'birthPostalCode': clientInfo.birthPostalCode || "",
+        'spouseBirthPostalCode': clientInfo.spouseBirthPostalCode || "",
+        'nbChildren': clientInfo.children ? clientInfo.children.length.toString() : "0",
+        
+        // Informations méta
+        'dateGeneration': new Date().toLocaleDateString('fr-FR'),
+        'nbPreconisations': selectedPreconisationsDetails.length.toString(),
+        'fullName': `${clientInfo.firstName || ''} ${clientInfo.lastName || ''}`.trim(),
+        'spouseFullName': clientInfo.spouseFirstName && clientInfo.spouseLastName ? 
+          `${clientInfo.spouseFirstName} ${clientInfo.spouseLastName}`.trim() : "",
+      };
+
+      // Générer les variables de patrimoine selon le format Google Docs
+      const generatePatrimoineVariables = (): Record<string, string> => {
+        const patrimoineVars: Record<string, string> = {};
+        
+        // Charger les données de patrimoine depuis localStorage
+        const realEstateData = localStorage.getItem('patrimoineImmobilierInfo');
+        const financialData = localStorage.getItem('patrimoineFinancierInfo');
+        const professionalData = localStorage.getItem('patrimoineProfessionnelInfo');
+        
+        const realEstate = realEstateData ? JSON.parse(realEstateData) : [];
+        const financial = financialData ? JSON.parse(financialData) : [];
+        const professional = professionalData ? JSON.parse(professionalData) : [];
+        
+        // Calculer les totaux
+        let totalImmo = 0, totalImmoTitle = 0, totalImmoCom = 0, totalImmoSpouseTitle = 0;
+        let totalFi = 0, totalFiTitle = 0, totalFiCom = 0, totalFiSpouseTitle = 0;
+        let totalPro = 0, totalProTitle = 0, totalProCom = 0, totalProSpouseTitle = 0;
+        
+        // Générer les variables immobilières (jusqu'à 10 biens)
+        for (let i = 1; i <= 10; i++) {
+          const property = realEstate[i - 1];
+          if (property && property.denomination) {
+            const denomination = property.denomination;
+            const netValue = property.netValue || 0;
+            
+            // Générer les variantes pour la dénomination
+            const bienVars = generateVariableVariants(`bienImmobilier${i}`, denomination);
+            Object.assign(patrimoineVars, bienVars);
+            
+            // Répartition selon le mode de propriété (valeurs correctes)
+            if (property.ownedBy === 'Vous') {
+              // Optimisation: générer seulement les variantes avec valeur
+              const titleVars = generateVariableVariants(`titleImmo${i}`, netValue.toString());
+              Object.assign(patrimoineVars, titleVars);
+              // Générer les variantes vides seulement pour eu- et M- (les plus utilisées)
+              patrimoineVars[`comImmo${i}`] = '';
+              patrimoineVars['eu-comImmo' + i] = '';
+              patrimoineVars['M-comImmo' + i] = '';
+              patrimoineVars[`spouseTitleImmo${i}`] = '';
+              patrimoineVars['eu-spouseTitleImmo' + i] = '';
+              patrimoineVars['M-spouseTitleImmo' + i] = '';
+              totalImmoTitle += netValue;
+            } else if (property.ownedBy === 'Votre conjoint') {
+              const spouseTitleVars = generateVariableVariants(`spouseTitleImmo${i}`, netValue.toString());
+              Object.assign(patrimoineVars, spouseTitleVars);
+              // Variantes vides optimisées
+              patrimoineVars[`titleImmo${i}`] = '';
+              patrimoineVars['eu-titleImmo' + i] = '';
+              patrimoineVars['M-titleImmo' + i] = '';
+              patrimoineVars[`comImmo${i}`] = '';
+              patrimoineVars['eu-comImmo' + i] = '';
+              patrimoineVars['M-comImmo' + i] = '';
+              totalImmoSpouseTitle += netValue;
+            } else { // Commun
+              const comVars = generateVariableVariants(`comImmo${i}`, netValue.toString());
+              Object.assign(patrimoineVars, comVars);
+              // Variantes vides optimisées
+              patrimoineVars[`titleImmo${i}`] = '';
+              patrimoineVars['eu-titleImmo' + i] = '';
+              patrimoineVars['M-titleImmo' + i] = '';
+              patrimoineVars[`spouseTitleImmo${i}`] = '';
+              patrimoineVars['eu-spouseTitleImmo' + i] = '';
+              patrimoineVars['M-spouseTitleImmo' + i] = '';
+              totalImmoCom += netValue;
+            }
+            totalImmo += netValue;
+          } else {
+            // Bien vide - générer uniquement les variables principales vides
+            patrimoineVars[`bienImmobilier${i}`] = '';
+            patrimoineVars[`titleImmo${i}`] = '';
+            patrimoineVars[`comImmo${i}`] = '';
+            patrimoineVars[`spouseTitleImmo${i}`] = '';
+            // Variables eu- pour compatibilité
+            patrimoineVars['eu-titleImmo' + i] = '';
+            patrimoineVars['eu-comImmo' + i] = '';
+            patrimoineVars['eu-spouseTitleImmo' + i] = '';
+          }
+        }
+        
+        // Générer les variables financières (jusqu'à 10 biens)
+        for (let i = 1; i <= 10; i++) {
+          const asset = financial[i - 1];
+          if (asset && asset.denomination) {
+            const denomination = asset.denomination;
+            const realValue = asset.realValue || 0;
+            
+            // Générer les variantes pour la dénomination
+            const bienVars = generateVariableVariants(`bienFinancier${i}`, denomination);
+            Object.assign(patrimoineVars, bienVars);
+            
+            // Répartition selon le mode de propriété (valeurs correctes)
+            if (asset.ownedBy === 'Vous') {
+              const titleVars = generateVariableVariants(`titleFi${i}`, realValue.toString());
+              Object.assign(patrimoineVars, titleVars);
+              // Variantes vides optimisées
+              patrimoineVars[`comFi${i}`] = '';
+              patrimoineVars['eu-comFi' + i] = '';
+              patrimoineVars['M-comFi' + i] = '';
+              patrimoineVars[`spouseTitleFi${i}`] = '';
+              patrimoineVars['eu-spouseTitleFi' + i] = '';
+              patrimoineVars['M-spouseTitleFi' + i] = '';
+              totalFiTitle += realValue;
+            } else if (asset.ownedBy === 'Votre conjoint') {
+              const spouseTitleVars = generateVariableVariants(`spouseTitleFi${i}`, realValue.toString());
+              Object.assign(patrimoineVars, spouseTitleVars);
+              // Variantes vides optimisées
+              patrimoineVars[`titleFi${i}`] = '';
+              patrimoineVars['eu-titleFi' + i] = '';
+              patrimoineVars['M-titleFi' + i] = '';
+              patrimoineVars[`comFi${i}`] = '';
+              patrimoineVars['eu-comFi' + i] = '';
+              patrimoineVars['M-comFi' + i] = '';
+              totalFiSpouseTitle += realValue;
+            } else { // Commun
+              const comVars = generateVariableVariants(`comFi${i}`, realValue.toString());
+              Object.assign(patrimoineVars, comVars);
+              // Variantes vides optimisées
+              patrimoineVars[`titleFi${i}`] = '';
+              patrimoineVars['eu-titleFi' + i] = '';
+              patrimoineVars['M-titleFi' + i] = '';
+              patrimoineVars[`spouseTitleFi${i}`] = '';
+              patrimoineVars['eu-spouseTitleFi' + i] = '';
+              patrimoineVars['M-spouseTitleFi' + i] = '';
+              totalFiCom += realValue;
+            }
+            totalFi += realValue;
+          } else {
+            // Bien vide - générer uniquement les variables principales vides
+            patrimoineVars[`bienFinancier${i}`] = '';
+            patrimoineVars[`titleFi${i}`] = '';
+            patrimoineVars[`comFi${i}`] = '';
+            patrimoineVars[`spouseTitleFi${i}`] = '';
+            // Variables eu- pour compatibilité
+            patrimoineVars['eu-titleFi' + i] = '';
+            patrimoineVars['eu-comFi' + i] = '';
+            patrimoineVars['eu-spouseTitleFi' + i] = '';
+          }
+        }
+        
+        // Générer les variables professionnelles (jusqu'à 10 biens)
+        for (let i = 1; i <= 10; i++) {
+          const asset = professional[i - 1];
+          if (asset && (asset.companyName || asset.activity)) {
+            const denomination = asset.companyName || asset.activity || '';
+            const valuation = asset.valuation || 0;
+            
+            // Générer les variantes pour la dénomination
+            const bienVars = generateVariableVariants(`bienProfessionnel${i}`, denomination);
+            Object.assign(patrimoineVars, bienVars);
+            
+            // Répartition selon le mode de propriété (valeurs correctes)
+            if (asset.ownership === 'Vous') {
+              const titleVars = generateVariableVariants(`titlePro${i}`, valuation.toString());
+              Object.assign(patrimoineVars, titleVars);
+              // Variantes vides optimisées
+              patrimoineVars[`comPro${i}`] = '';
+              patrimoineVars['eu-comPro' + i] = '';
+              patrimoineVars['M-comPro' + i] = '';
+              patrimoineVars[`spouseTitlePro${i}`] = '';
+              patrimoineVars['eu-spouseTitlePro' + i] = '';
+              patrimoineVars['M-spouseTitlePro' + i] = '';
+              totalProTitle += valuation;
+            } else if (asset.ownership === 'Votre conjoint') {
+              const spouseTitleVars = generateVariableVariants(`spouseTitlePro${i}`, valuation.toString());
+              Object.assign(patrimoineVars, spouseTitleVars);
+              // Variantes vides optimisées
+              patrimoineVars[`titlePro${i}`] = '';
+              patrimoineVars['eu-titlePro' + i] = '';
+              patrimoineVars['M-titlePro' + i] = '';
+              patrimoineVars[`comPro${i}`] = '';
+              patrimoineVars['eu-comPro' + i] = '';
+              patrimoineVars['M-comPro' + i] = '';
+              totalProSpouseTitle += valuation;
+            } else { // Commun
+              const comVars = generateVariableVariants(`comPro${i}`, valuation.toString());
+              Object.assign(patrimoineVars, comVars);
+              // Variantes vides optimisées
+              patrimoineVars[`titlePro${i}`] = '';
+              patrimoineVars['eu-titlePro' + i] = '';
+              patrimoineVars['M-titlePro' + i] = '';
+              patrimoineVars[`spouseTitlePro${i}`] = '';
+              patrimoineVars['eu-spouseTitlePro' + i] = '';
+              patrimoineVars['M-spouseTitlePro' + i] = '';
+              totalProCom += valuation;
+            }
+            totalPro += valuation;
+          } else {
+            // Bien vide - générer uniquement les variables principales vides
+            patrimoineVars[`bienProfessionnel${i}`] = '';
+            patrimoineVars[`titlePro${i}`] = '';
+            patrimoineVars[`comPro${i}`] = '';
+            patrimoineVars[`spouseTitlePro${i}`] = '';
+            // Variables eu- pour compatibilité
+            patrimoineVars['eu-titlePro' + i] = '';
+            patrimoineVars['eu-comPro' + i] = '';
+            patrimoineVars['eu-spouseTitlePro' + i] = '';
+          }
+        }
+        
+        // Calculer les totaux et pourcentages
+        const totalPatrimoine = totalImmo + totalFi + totalPro;
+        const totalTitle = totalImmoTitle + totalFiTitle + totalProTitle;
+        const totalCom = totalImmoCom + totalFiCom + totalProCom;
+        const totalSpouseTitle = totalImmoSpouseTitle + totalFiSpouseTitle + totalProSpouseTitle;
+        
+        // Ajouter les variables de totaux avec formatage automatique
+        const totalImmoVars = generateVariableVariants('totalImmo', totalImmo.toString());
+        const totalFiVars = generateVariableVariants('totalFi', totalFi.toString());
+        const totalProVars = generateVariableVariants('totalPro', totalPro.toString());
+        
+        // Calculer les pourcentages et les formater
+        const pctImmo = totalPatrimoine > 0 ? Math.round((totalImmo / totalPatrimoine) * 100).toString() : '0';
+        const pctFi = totalPatrimoine > 0 ? Math.round((totalFi / totalPatrimoine) * 100).toString() : '0';
+        const pctPro = totalPatrimoine > 0 ? Math.round((totalPro / totalPatrimoine) * 100).toString() : '0';
+        
+        const pctImmoVars = generateVariableVariants('totalImmo', pctImmo);
+        const pctFiVars = generateVariableVariants('totalFi', pctFi);
+        const pctProVars = generateVariableVariants('totalPro', pctPro);
+        
+        // Ajouter toutes les variables
+        Object.assign(patrimoineVars, totalImmoVars, totalFiVars, totalProVars);
+        
+        // Ajouter spécifiquement les variables de pourcentage formatées
+        patrimoineVars['pct-totalImmo'] = applyFormatPrefix(pctImmo, 'pct');
+        patrimoineVars['pct-totalFi'] = applyFormatPrefix(pctFi, 'pct');
+        patrimoineVars['pct-totalPro'] = applyFormatPrefix(pctPro, 'pct');
+        
+        patrimoineVars['totalTitle'] = totalTitle.toString();
+        patrimoineVars['totalCom'] = totalCom.toString();
+        patrimoineVars['totalSpouseTitle'] = totalSpouseTitle.toString();
+        patrimoineVars['totalPat'] = totalPatrimoine.toString();
+        
+        return patrimoineVars;
       };
       
-      // Ajouter la date de l'étude
-      variables['date_etude'] = new Date().toLocaleDateString('fr-FR');
+      // Générer les variables de patrimoine
+      const patrimoineVariables = generatePatrimoineVariables();
       
-      // Log des données client utilisées
-      console.log('Données client utilisées:', dataToUse.profile);
+      // Fusionner avec les variables de base
+      Object.assign(baseVariables, patrimoineVariables);
+
+      // Générer les blocs conditionnels
+      const conditionalBlocks = generateConditionalBlocks(baseVariables, clientInfo);
+      
+      // Générer toutes les variantes avec préfixes pour chaque variable
+      const variables: Record<string, string> = {};
+      
+      // Ajouter les variables de base avec leurs variantes
+      Object.entries(baseVariables).forEach(([key, value]) => {
+        const variants = generateVariableVariants(key, value);
+        Object.assign(variables, variants);
+      });
+      
+      // Ajouter les blocs conditionnels avec leurs variantes
+      Object.entries(conditionalBlocks).forEach(([key, value]) => {
+        const variants = generateVariableVariants(key, value);
+        Object.assign(variables, variants);
+      });
+      
+      console.log('📊 Variables préparées pour Google Docs:', variables);
+      console.log('🔍 Variables title dans l\'objet final:', {
+        title: variables.title,
+        spouseTitle: variables.spouseTitle
+      });
+      console.log('📄 Nombre de préconisations:', selectedPreconisationsDetails.length);
       
       // Ajouter les préconisations individuellement
       selectedPreconisationsDetails.forEach((preco, index) => {
@@ -242,20 +888,47 @@ export default function RecommendationsPage() {
         }
       }
       
-      // Appel à l'API Google Apps Script directement
-      // URL de votre Apps Script déployé
-      const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwquTkwi6vWR4CLQtltQpeKv90SEFj-hHvtsFJ9xmkSBlm_6TzOcfAHBIPu1Xc7lYTUuw/exec';
+      // 🧩 NETTOYAGE INTELLIGENT DES LIGNES VIDES DANS LES TABLEAUX
+      // Instructions pour Google Apps Script :
+      // - Supprimer les lignes de tableau où TOUTES les colonnes sont vides
       
-      console.log('Données envoyées au script:', { variables });
-      console.log('Tentative de fetch direct vers:', APPS_SCRIPT_URL);
+      // Identifier les variables vides pour le nettoyage
+      const emptyVariables: string[] = [];
+      Object.entries(variables).forEach(([key, value]) => {
+        if (value === '' || value === null || value === undefined) {
+          emptyVariables.push(key);
+        }
+      });
       
-      // Solution basée sur le forum Reddit: utiliser Content-Type text/plain
+      // OPTIMISATION: Filtrer les variables vides inutiles (garder seulement celles nécessaires)
+      const filteredVariables: { [key: string]: any } = {};
+      Object.entries(variables).forEach(([key, value]) => {
+        // Garder les variables avec valeur OU les variables principales vides (pour template)
+        if (value !== '' && value !== null && value !== undefined) {
+          filteredVariables[key] = value;
+        } else if (key.match(/^(bienImmobilier|titleImmo|comImmo|spouseTitleImmo|bienFinancier|titleFi|comFi|spouseTitleFi|bienProfessionnel|titlePro|comPro|spouseTitlePro|eu-)/)) {
+          filteredVariables[key] = '';
+        }
+      });
+      
+      // Ajouter les variables de contrôle
+      filteredVariables['_CLEAN_EMPTY_ROWS'] = 'smart';
+      filteredVariables['_CLEAN_TABLES'] = 'patrimoine,finances';
+      filteredVariables['_EMPTY_VARIABLES'] = emptyVariables.join(',');
+      
+      console.log(`⚡ Optimisation: ${Object.keys(variables).length} → ${Object.keys(filteredVariables).length} variables`);
+      
+      // 🔧 URL Google Apps Script
+      const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbztzaYKReSnMMi_vdJiuOn9-f4IFN8EtsO6q09rzSesgrwxO0JSByMSTfvQJRIImQBrKw/exec';
+      
+      console.log('🚀 Envoi optimisé vers Google Apps Script...');
+      
       const response = await fetch(APPS_SCRIPT_URL, {
         method: 'POST',
         headers: {
-          'Content-Type': 'text/plain',  // Important pour éviter les requêtes preflight CORS
+          'Content-Type': 'text/plain',
         },
-        body: JSON.stringify({ variables }),
+        body: JSON.stringify({ variables: filteredVariables }),
       });
       
       console.log('Réponse du serveur:', response.status, response.statusText);
@@ -268,10 +941,28 @@ export default function RecommendationsPage() {
       console.log('Résultat parsé:', result);
       
       if (result.success) {
-        setPdfData({
-          pdf: result.pdf,
-          filename: result.filename
-        });
+        console.log('✅ PDF généré avec succès!');
+        
+        // Télécharger automatiquement le PDF
+        const byteCharacters = atob(result.pdf);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+        
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = result.filename || `preconisations_${clientInfo.firstName}_${clientInfo.lastName}_${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        // Définir pdfData pour afficher le message de succès
+        setPdfData(result);
       } else {
         setExportError(result.error || 'Erreur lors de la génération du PDF');
       }
@@ -423,6 +1114,38 @@ export default function RecommendationsPage() {
           </Breadcrumb>
         </div>
         <div className="ml-auto px-4 flex items-center gap-2">
+          {/* Boutons de test pour développement */}
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => {
+              loadTestDataToLocalStorage();
+              window.location.reload();
+            }}
+            className="text-xs"
+          >
+            🧪 Test Data
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={checkCurrentData}
+            className="text-xs"
+          >
+            📊 Check Data
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => {
+              clearTestData();
+              window.location.reload();
+            }}
+            className="text-xs"
+          >
+            🗑️ Clear
+          </Button>
+          <Separator orientation="vertical" className="h-6" />
           <Button variant="outline" onClick={exportToPDF}>
             <Download className="w-4 h-4 mr-2" />
             Export PDF
@@ -634,16 +1357,32 @@ export default function RecommendationsPage() {
         <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Export de l'étude patrimoniale</DialogTitle>
+              <DialogTitle>
+                {isExporting 
+                  ? "Export de l'étude patrimoniale" 
+                  : pdfData 
+                    ? "Téléchargement réussi" 
+                    : exportError 
+                      ? "Erreur d'exportation" 
+                      : "Export de l'étude patrimoniale"
+                }
+              </DialogTitle>
               <DialogDescription>
-                Génération du document PDF personnalisé avec vos préconisations sélectionnées
+                {isExporting 
+                  ? "Génération du document PDF personnalisé avec vos préconisations sélectionnées" 
+                  : pdfData 
+                    ? "Votre document a bien été téléchargé et se trouve dans votre dossier Téléchargements" 
+                    : exportError 
+                      ? "Une erreur est survenue lors de l'exportation" 
+                      : "Génération du document PDF personnalisé avec vos préconisations sélectionnées"
+                }
               </DialogDescription>
             </DialogHeader>
             
             <div className="space-y-4">
               {isExporting && (
                 <div className="flex flex-col items-center justify-center p-8">
-                  <div className="h-12 w-12 rounded-full border-4 border-t-blue-600 border-blue-200 animate-spin mb-4"></div>
+                  <Spinner size="lg" className="mb-4" />
                   <h3 className="text-lg font-medium mb-2">Génération en cours...</h3>
                   <p className="text-center text-muted-foreground">
                     Traitement des données et création du document PDF personnalisé
@@ -672,7 +1411,7 @@ export default function RecommendationsPage() {
                     </div>
                     <h3 className="text-lg font-medium mb-2 text-green-600">Document généré avec succès</h3>
                     <p className="text-center text-muted-foreground mb-4">
-                      Votre étude patrimoniale personnalisée est prête à être téléchargée
+                      L'étude patrimoniale a été téléchargée et se trouve dans vos téléchargements
                     </p>
                   </div>
                   

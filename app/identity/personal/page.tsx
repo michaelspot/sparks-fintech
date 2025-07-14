@@ -35,6 +35,61 @@ import {
 
 const LOCAL_STORAGE_KEY = "identityPersonalInfo"
 
+// Interface pour les communes de l'API française
+interface Commune {
+  nom: string
+  code: string
+  codeDepartement: string
+  siren: string
+  codeEpci: string
+  codeRegion: string
+  codesPostaux: string[]
+  population: number
+}
+
+// Fonction pour formatter le texte en Title Case (première lettre majuscule)
+const formatTitleCase = (text: string): string => {
+  if (!text) return text
+  // Autoriser seulement les lettres, espaces et tirets
+  const cleanText = text.replace(/[^a-zA-ZÀ-ÿ\s\-']/g, '')
+  return cleanText.charAt(0).toUpperCase() + cleanText.slice(1).toLowerCase()
+}
+
+// Fonction pour formatter le texte en MAJUSCULES
+const formatUpperCase = (text: string): string => {
+  if (!text) return text
+  // Autoriser seulement les lettres, espaces et tirets
+  const cleanText = text.replace(/[^a-zA-ZÀ-ÿ\s\-']/g, '')
+  return cleanText.toUpperCase()
+}
+
+// Fonction pour calculer l'âge à partir d'une date de naissance
+const calculateAge = (birthDate: string): number => {
+  if (!birthDate) return 0
+  const today = new Date()
+  const birth = new Date(birthDate)
+  let age = today.getFullYear() - birth.getFullYear()
+  const monthDiff = today.getMonth() - birth.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--
+  }
+  return age
+}
+
+// Fonction pour récupérer les communes à partir d'un code postal
+const fetchCommunes = async (postalCode: string): Promise<Commune[]> => {
+  if (!postalCode || postalCode.length !== 5) return []
+  try {
+    const response = await fetch(`https://geo.api.gouv.fr/communes?codePostal=${postalCode}`)
+    if (!response.ok) return []
+    const communes: Commune[] = await response.json()
+    return communes
+  } catch (error) {
+    console.error('Erreur lors de la récupération des communes:', error)
+    return []
+  }
+}
+
 // Données CSP
 const cspOptions = [
   { value: "11", label: "Agriculteurs sur petite exploitation" },
@@ -169,8 +224,7 @@ type FormData = {
   marriagePlace: string;
   matrimonialRegime: string;
   children: Child[];
-  parent1Name: string;
-  parent2Name: string;
+
   liberalities: string;
   liberalitiesAmount: string;
   lastWillDonation: string;
@@ -222,8 +276,7 @@ export default function PersonalInfoPage() {
     marriagePlace: "",
     matrimonialRegime: "",
     children: [] as Child[], // Nouveau champ: Liste des enfants
-    parent1Name: "", // Nom pour référencer le premier parent
-    parent2Name: "", // Nom pour référencer le deuxième parent
+
     liberalities: "", // Nouveau champ: Libéralités
     liberalitiesAmount: "", // Nouveau champ: Montant des libéralités
     lastWillDonation: "", // Renommé de lastWillBenefit
@@ -239,6 +292,38 @@ export default function PersonalInfoPage() {
     retirementAge: "",
     spouseRetirementAge: "",
   })
+
+  // États pour les communes
+  const [communes, setCommunes] = useState<Commune[]>([])
+  const [spouseCommunes, setSpouseCommunes] = useState<Commune[]>([])
+  const [loadingCommunes, setLoadingCommunes] = useState(false)
+  const [loadingSpouseCommunes, setLoadingSpouseCommunes] = useState(false)
+
+  // Fonction pour charger les communes en fonction du code postal
+  const loadCommunesForPostalCode = async (postalCode: string, isSpouse: boolean) => {
+    if (isSpouse) {
+      setLoadingSpouseCommunes(true)
+    } else {
+      setLoadingCommunes(true)
+    }
+    
+    try {
+      const communesData = await fetchCommunes(postalCode)
+      if (isSpouse) {
+        setSpouseCommunes(communesData)
+      } else {
+        setCommunes(communesData)
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des communes:', error)
+    } finally {
+      if (isSpouse) {
+        setLoadingSpouseCommunes(false)
+      } else {
+        setLoadingCommunes(false)
+      }
+    }
+  }
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -262,9 +347,7 @@ export default function PersonalInfoPage() {
           parsedData.childrenCount = parsedData.children.length.toString()
         }
         
-        // Initialiser les noms des parents s'ils n'existent pas
-        if (!parsedData.parent1Name) parsedData.parent1Name = ""
-        if (!parsedData.parent2Name) parsedData.parent2Name = ""
+
         
         setFormData(parsedData)
       }
@@ -272,10 +355,39 @@ export default function PersonalInfoPage() {
   }, [])
 
   const handleInputChange = (field: string, value: string) => {
-    const newFormData = { ...formData, [field]: value }
+    let processedValue = value
     
-    // Aucune logique spéciale n'est nécessaire pour les enfants
-    // Les enfants sont gérés directement via le bouton "Ajouter un enfant" et le panneau latéral
+    // Appliquer les formatages selon le champ
+    const upperCaseFields = ['lastName', 'spouseLastName', 'birthName', 'spouseBirthName']
+    const titleCaseFields = ['firstName', 'spouseFirstName', 'country', 'spouseCountry', 'nationality', 'spouseNationality', 'marriagePlace', 'profession', 'spouseProfession', 'company', 'spouseCompany']
+    
+    if (upperCaseFields.includes(field)) {
+      processedValue = formatUpperCase(value)
+    } else if (titleCaseFields.includes(field)) {
+      processedValue = formatTitleCase(value)
+    }
+    
+    const newFormData = { ...formData, [field]: processedValue }
+    
+    // Calculer automatiquement l'âge quand la date de naissance change
+    if (field === 'birthDate' && processedValue) {
+      const age = calculateAge(processedValue)
+      newFormData.age = age.toString()
+    }
+    
+    if (field === 'spouseBirthDate' && processedValue) {
+      const age = calculateAge(processedValue)
+      newFormData.spouseAge = age.toString()
+    }
+    
+    // Charger les communes quand le code postal change
+    if (field === 'birthPostalCode' && processedValue.length === 5) {
+      loadCommunesForPostalCode(processedValue, false)
+    }
+    
+    if (field === 'spouseBirthPostalCode' && processedValue.length === 5) {
+      loadCommunesForPostalCode(processedValue, true)
+    }
     
     setFormData(newFormData)
     
@@ -517,21 +629,23 @@ export default function PersonalInfoPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="age">Âge</Label>
+                    <Label htmlFor="age">Âge (calculé automatiquement)</Label>
                     <Input
                       id="age"
-                      placeholder="45"
+                      placeholder="Calculé à partir de la date de naissance"
                       value={formData.age}
-                      onChange={(e) => handleInputChange("age", e.target.value)}
+                      readOnly
+                      className="bg-gray-50"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="spouse-age">Âge du conjoint</Label>
+                    <Label htmlFor="spouse-age">Âge du conjoint (calculé automatiquement)</Label>
                     <Input
                       id="spouse-age"
-                      placeholder="42"
+                      placeholder="Calculé à partir de la date de naissance"
                       value={formData.spouseAge}
-                      onChange={(e) => handleInputChange("spouseAge", e.target.value)}
+                      readOnly
+                      className="bg-gray-50"
                     />
                   </div>
                 </div>
@@ -560,15 +674,26 @@ export default function PersonalInfoPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="city">Commune de naissance</Label>
-                    <Select value={formData.city} onValueChange={(value) => handleInputChange("city", value)}>
+                    <Select 
+                      value={formData.city} 
+                      onValueChange={(value) => handleInputChange("city", value)}
+                      disabled={communes.length === 0}
+                    >
                       <SelectTrigger>
-                        <SelectValue placeholder="Paris" />
+                        <SelectValue placeholder={
+                          loadingCommunes 
+                            ? "Chargement..." 
+                            : communes.length === 0 
+                              ? "Entrez d'abord un code postal" 
+                              : "Sélectionner une commune"
+                        } />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="paris">Paris</SelectItem>
-                        <SelectItem value="lyon">Lyon</SelectItem>
-                        <SelectItem value="marseille">Marseille</SelectItem>
-                        <SelectItem value="autre">Autre</SelectItem>
+                        {communes.map((commune) => (
+                          <SelectItem key={commune.code} value={commune.nom}>
+                            {commune.nom}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -577,15 +702,23 @@ export default function PersonalInfoPage() {
                     <Select
                       value={formData.spouseCity}
                       onValueChange={(value) => handleInputChange("spouseCity", value)}
+                      disabled={spouseCommunes.length === 0}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Entrez un code postal" />
+                        <SelectValue placeholder={
+                          loadingSpouseCommunes 
+                            ? "Chargement..." 
+                            : spouseCommunes.length === 0 
+                              ? "Entrez d'abord un code postal" 
+                              : "Sélectionner une commune"
+                        } />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="paris">Paris</SelectItem>
-                        <SelectItem value="lyon">Lyon</SelectItem>
-                        <SelectItem value="marseille">Marseille</SelectItem>
-                        <SelectItem value="autre">Autre</SelectItem>
+                        {spouseCommunes.map((commune) => (
+                          <SelectItem key={commune.code} value={commune.nom}>
+                            {commune.nom}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -771,27 +904,7 @@ export default function PersonalInfoPage() {
                 </div>
               )}
               
-              {/* Configuration des parents pour les enfants */}
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="space-y-2">
-                  <Label htmlFor="parent1Name">Nom du premier parent</Label>
-                  <Input
-                    id="parent1Name"
-                    placeholder="Nom du premier parent"
-                    value={formData.parent1Name || formData.firstName}
-                    onChange={(e) => handleInputChange("parent1Name", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="parent2Name">Nom du second parent</Label>
-                  <Input
-                    id="parent2Name"
-                    placeholder="Nom du second parent"
-                    value={formData.parent2Name || formData.spouseFirstName}
-                    onChange={(e) => handleInputChange("parent2Name", e.target.value)}
-                  />
-                </div>
-              </div>
+
               
               {/* Section des enfants */}
               <div className="space-y-4 mt-4">
