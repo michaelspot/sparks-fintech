@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
+import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Spinner } from "@/components/ui/spinner"
@@ -64,7 +65,7 @@ export default function RecommendationsPage() {
   // États pour l'export PDF
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [pdfData, setPdfData] = useState<{pdf: string, filename: string} | null>(null);
+  const [exportProgress, setExportProgress] = useState(0);
   const [exportError, setExportError] = useState<string | null>(null);
   
   // Local storage keys
@@ -87,78 +88,61 @@ export default function RecommendationsPage() {
     setExportDialogOpen(true);
     setIsExporting(true);
     setExportError(null);
-    setPdfData(null);
+    setExportProgress(0);
     
     try {
-      // Utiliser les données du localStorage ou les données fallback
-      const dataToUse = Object.keys(clientData).length > 0 ? clientData : fallbackData;
+      // Étape 1 : Préparation
+      setExportProgress(20);
+      await new Promise(resolve => setTimeout(resolve, 300));
       
-      // Récupérer les préconisations sélectionnées avec leurs priorités
-      const selectedPreconisationsDetails = preconisations
-        .filter(preco => selectedPreconisations.includes(preco.id))
-        .map(preco => ({
-          ...preco,
-          priority: customPriorities[preco.id] || preco.priority
-        }));
+      // Étape 2 : Génération du document
+      setExportProgress(60);
+      await new Promise(resolve => setTimeout(resolve, 300));
       
-      // Interface pour les données client
-      interface ClientData {
-        // Informations de base
-        title?: string;
-        firstName?: string;
-        lastName?: string;
-        birthName?: string;
-        age?: string | number;
-        
-        // Informations du conjoint
-        spouseTitle?: string;
-        spouseFirstName?: string;
-        spouseLastName?: string;
-        spouseBirthName?: string;
-        spouseAge?: string | number;
-        
-        // Situation familiale
-        maritalStatus?: string;
-        marriageDate?: string;
-        marriagePlace?: string;
-        matrimonialRegime?: string;
-        
-        // Informations professionnelles
-        profession?: string;
-        spouseProfession?: string;
-        company?: string;
-        spouseCompany?: string;
-        
-        // Informations personnelles
-        birthDate?: string;
-        city?: string;
-        birthPostalCode?: string;
-        nationality?: string;
-        
-        // Informations du conjoint
-        spouseBirthDate?: string;
-        spouseCity?: string;
-        spouseBirthPostalCode?: string;
-        spouseNationality?: string;
-        
-        // Enfants
-        children?: any[];
+      // Étape 3 : Export PDF avec la fonction externe
+      setExportProgress(80);
+      const success = await exportToPDFExternal();
+      
+      if (success) {
+        setExportProgress(100);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        setExportDialogOpen(false);
+      } else {
+        throw new Error('Erreur lors de l\'export PDF');
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'export PDF:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      setExportError(errorMessage);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Fonction utilitaire pour obtenir la couleur de priorité
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "Haute":
+        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
+      case "Moyenne":
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
+      case "Basse":
+        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedSelected = localStorage.getItem(LOCAL_STORAGE_KEY_SELECTED);
+      if (savedSelected) {
+        setSelectedPreconisations(JSON.parse(savedSelected));
       }
       
-      // Récupérer les données client depuis le localStorage avec la clé 'identityPersonalInfo'
-      let clientInfo: ClientData = {};
-      try {
-        const identityDataStr = localStorage.getItem('identityPersonalInfo');
-        if (identityDataStr) {
-          clientInfo = JSON.parse(identityDataStr);
-          console.log('🔍 Données identité trouvées dans le localStorage:', clientInfo);
-          console.log('🔍 Title:', clientInfo.title);
-          console.log('🔍 SpouseTitle:', clientInfo.spouseTitle);
-        } else {
-          console.warn('Aucune donnée identité trouvée dans le localStorage avec la clé identityPersonalInfo');
-        }
-      } catch (error) {
-        console.error('Erreur lors de la lecture des données identité:', error);
+      const savedPriorities = localStorage.getItem(LOCAL_STORAGE_KEY_PRIORITIES);
+      if (savedPriorities) {
+        setCustomPriorities(JSON.parse(savedPriorities));
       }
 
       // Fonction utilitaire pour formater les dates au format jj/mm/aaaa
@@ -1082,19 +1066,6 @@ export default function RecommendationsPage() {
     setFilteredRecommendations(applicable)
   }, [clientData])
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "Haute":
-        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
-      case "Moyenne":
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
-      case "Basse":
-        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
-      default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
-    }
-  }
-
   return (
     <SidebarInset>
       <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
@@ -1355,89 +1326,199 @@ export default function RecommendationsPage() {
           </div>
         )}
         
-        {/* Dialog d'export PDF */}
+        {/* Nouveau Dialog d'export PDF moderne */}
         <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="sm:max-w-[850px]">
             <DialogHeader>
               <DialogTitle>
                 {isExporting 
-                  ? "Export de l'étude patrimoniale" 
-                  : pdfData 
-                    ? "Téléchargement réussi" 
-                    : exportError 
-                      ? "Erreur d'exportation" 
-                      : "Export de l'étude patrimoniale"
+                  ? "Génération de votre étude patrimoniale" 
+                  : exportError 
+                    ? "Erreur d'export" 
+                    : "Export de l'étude patrimoniale"
                 }
               </DialogTitle>
               <DialogDescription>
                 {isExporting 
-                  ? "Génération du document PDF personnalisé avec vos préconisations sélectionnées" 
-                  : pdfData 
-                    ? "Votre document a bien été téléchargé et se trouve dans votre dossier Téléchargements" 
-                    : exportError 
-                      ? "Une erreur est survenue lors de l'exportation" 
-                      : "Génération du document PDF personnalisé avec vos préconisations sélectionnées"
+                  ? "Création de votre document PDF personnalisé..." 
+                  : exportError 
+                    ? "Une erreur est survenue lors de l'exportation" 
+                    : `Export de votre étude avec ${selectedPreconisations.length} préconisation${selectedPreconisations.length > 1 ? 's' : ''} sélectionnée${selectedPreconisations.length > 1 ? 's' : ''}`
                 }
               </DialogDescription>
             </DialogHeader>
             
-            <div className="space-y-4">
-              {isExporting && (
-                <div className="flex flex-col items-center justify-center p-8">
-                  <Spinner size="lg" className="mb-4" />
-                  <h3 className="text-lg font-medium mb-2">Génération en cours...</h3>
-                  <p className="text-center text-muted-foreground">
-                    Traitement des données et création du document PDF personnalisé
-                  </p>
-                </div>
-              )}
-              
-              {exportError && (
-                <div className="flex flex-col items-center justify-center p-8">
-                  <div className="h-12 w-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-4">
-                    <X className="h-6 w-6" />
-                  </div>
-                  <h3 className="text-lg font-medium mb-2 text-red-600">Erreur lors de l'export</h3>
-                  <p className="text-center text-muted-foreground mb-4">{exportError}</p>
-                  <Button onClick={() => setExportDialogOpen(false)} variant="outline">
-                    Fermer
-                  </Button>
-                </div>
-              )}
-              
-              {pdfData && (
-                <div className="space-y-4">
-                  <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-green-300 bg-green-50 dark:bg-green-950 rounded-lg">
-                    <div className="h-12 w-12 rounded-full bg-green-100 text-green-600 flex items-center justify-center mb-4">
-                      <Check className="h-6 w-6" />
-                    </div>
-                    <h3 className="text-lg font-medium mb-2 text-green-600">Document généré avec succès</h3>
-                    <p className="text-center text-muted-foreground mb-4">
-                      L'étude patrimoniale a été téléchargée et se trouve dans vos téléchargements
-                    </p>
-                  </div>
-                  
-                  {/* Résumé des préconisations incluses */}
-                  <div className="bg-muted p-4 rounded-lg">
-                    <h4 className="font-medium mb-3">Préconisations incluses dans le document :</h4>
-                    <div className="space-y-2">
-                      {preconisations
-                        .filter(preco => selectedPreconisations.includes(preco.id))
-                        .map(preco => (
-                          <div key={preco.id} className="flex items-center justify-between text-sm">
-                            <span>{preco.title}</span>
-                            <Badge className={`text-xs ${getPriorityColor(customPriorities[preco.id] || preco.priority)}`}>
-                              {customPriorities[preco.id] || preco.priority}
+            <div className="space-y-6">
+              {/* Résumé des préconisations sélectionnées */}
+              {!isExporting && !exportError && (
+                <div>
+                  <h4 className="text-sm font-medium mb-3">Préconisations incluses :</h4>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {preconisations
+                      .filter(preco => selectedPreconisations.includes(preco.id))
+                      .map(preco => {
+                        const priority = customPriorities[preco.id] || preco.priority;
+                        return (
+                          <div key={preco.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <div className="flex-1">
+                              <p className="font-medium text-sm">{preco.title}</p>
+                            </div>
+                            <Badge className={getPriorityColor(priority)}>
+                              {priority}
                             </Badge>
                           </div>
-                        ))
-                      }
+                        );
+                      })
+                    }
+                  </div>
+                </div>
+              )}
+              
+              {/* Progress bar pendant l'export */}
+              {isExporting && (
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Progression de l'export
+                    </p>
+                    <Progress value={exportProgress} className="w-full" />
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {exportProgress}% - {exportProgress < 30 ? 'Préparation...' : 
+                                          exportProgress < 70 ? 'Génération du document...' : 
+                                          exportProgress < 100 ? 'Export PDF...' : 'Terminé !'}
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Message d'erreur */}
+              {exportError && (
+                <div className="text-center space-y-4">
+                  <div className="flex items-center justify-center">
+                    <div className="h-12 w-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
+                      <X className="h-6 w-6" />
                     </div>
                   </div>
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-red-600">Erreur d'exportation</h4>
+                    <p className="text-sm text-muted-foreground">{exportError}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <DialogFooter>
+              {!isExporting && (
+                <>
+                  <DialogClose asChild>
+                    <Button variant="outline">
+                      Annuler
+                    </Button>
+                  </DialogClose>
+                  {!exportError && (
+                    <Button onClick={exportToPDF}>
+                      <Download className="w-4 h-4 mr-2" />
+                      Générer le PDF
+                    </Button>
+                  )}
+                  {exportError && (
+                    <Button onClick={exportToPDF}>
+                      Réessayer
+                    </Button>
+                  )}
+                </>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <Card key={rec.id} className="relative">
+          <CardHeader>
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg bg-muted ${rec.color}`}>
+                  {rec.icon && <rec.icon className="h-5 w-5" />}
+                </div>
+                <div>
+                  <CardTitle className="text-lg">{rec.title}</CardTitle>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="secondary">{rec.category}</Badge>
+                    <div 
+                      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-none select-none ${getPriorityColor(customPriorities[rec.id] || rec.priority)}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        togglePriority(rec.id);
+                      }}
+                      style={{
+                        cursor: 'pointer',
+                        pointerEvents: 'auto',
+                        WebkitTapHighlightColor: 'transparent',
+                      }}
+                    >
+                      Priorité {customPriorities[rec.id] || rec.priority}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm font-medium text-green-600">{rec.impact}</div>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground mb-4">{rec.description}</p>
+            <div className="flex justify-end space-x-2">
+              <Dialog open={dialogOpen && selectedRecommendation === rec.id} onOpenChange={(open) => {
+                setDialogOpen(open);
+                if (!open) setSelectedRecommendation(null);
+              }}>
+                <DialogTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setSelectedRecommendation(rec.id)}
+                  >
+                    Plus de détails
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>{rec.title}</DialogTitle>
+                    <DialogDescription>{rec.description}</DialogDescription>
+                  </DialogHeader>
                   
-                  <div className="flex justify-end space-x-2">
-                    <Button onClick={() => setExportDialogOpen(false)} variant="outline">
-                      Fermer
+                  <Tabs defaultValue="avantages">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="avantages">Avantages</TabsTrigger>
+                      <TabsTrigger value="inconvenients">Inconvénients</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="avantages" className="mt-4 space-y-2">
+                      {rec.advantages?.length ? (
+                        <ul className="list-disc pl-5 space-y-2">
+                          {rec.advantages.map((advantage, idx) => (
+                            <li key={idx}>{advantage}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-muted-foreground">Aucun avantage spécifié</p>
+                      )}
+                    </TabsContent>
+                    <TabsContent value="inconvenients" className="mt-4 space-y-2">
+                      {rec.disadvantages?.length ? (
+                        <ul className="list-disc pl-5 space-y-2">
+                          {rec.disadvantages.map((disadvantage, idx) => (
+                            <li key={idx}>{disadvantage}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-muted-foreground">Aucun inconvénient spécifié</p>
+                      )}
+                    </TabsContent>
+                  </Tabs>
+                  
+                  <div className="flex justify-end mt-6">
+                    <Button>
+                      Appliquer cette préconisation
                     </Button>
                     <Button onClick={downloadPDF}>
                       <Download className="w-4 h-4 mr-2" />

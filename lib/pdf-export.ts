@@ -1,5 +1,3 @@
-import { GOOGLE_APPS_SCRIPT_CONFIG } from './config';
-
 // Interface pour les données d'identité
 interface IdentityPersonalInfo {
   title?: string;
@@ -48,7 +46,7 @@ interface IdentityPersonalInfo {
   spouseRetirementAge?: string;
 }
 
-// Fonction d'export PDF utilisant Google Apps Script
+// Fonction d'export PDF utilisant l'API Google Docs directe
 export async function exportToPDF() {
   try {
     // Récupérer les données du localStorage
@@ -124,10 +122,7 @@ export async function exportToPDF() {
         { value: "77", label: "Anciens employés" },
         { value: "78", label: "Anciens ouvriers" },
         { value: "81", label: "Chômeurs n'ayant jamais travaillé" },
-        { value: "83", label: "Militaires du contingent" },
-        { value: "84", label: "Elèves, étudiants" },
-        { value: "85", label: "Personnes diverses sans activité professionnelle de moins de 60 ans" },
-        { value: "86", label: "Personnes diverses sans activité professionnelle de 60 ans et plus" }
+        { value: "82", label: "Autres personnes sans activité professionnelle" }
       ];
       const option = cspOptions.find(opt => opt.value === cspValue);
       return option ? option.label : cspValue;
@@ -135,28 +130,26 @@ export async function exportToPDF() {
 
     // Fonction utilitaire pour obtenir le libellé du statut marital
     const getMaritalStatusLabel = (status: string): string => {
-      if (!status) return '';
       const statusMap: { [key: string]: string } = {
-        'marie': 'Marié(e)',
         'celibataire': 'Célibataire',
+        'marie': 'Marié(e)',
+        'pacs': 'Pacsé(e)',
         'divorce': 'Divorcé(e)',
         'veuf': 'Veuf/Veuve',
-        'pacs': 'Pacsé(e)'
+        'concubinage': 'Concubinage'
       };
       return statusMap[status] || status;
     };
 
     // Fonction utilitaire pour obtenir le libellé du régime matrimonial
     const getMatrimonialRegimeLabel = (regime: string): string => {
-      if (!regime) return '';
       const regimeMap: { [key: string]: string } = {
+        'communaute-legale': 'Communauté légale',
         'communaute-reduite': 'Communauté réduite aux acquêts (depuis 1er février 1966)',
         'communaute-biens': 'Communauté de biens (avant 1er février 1966)',
         'separation-biens': 'Séparation de biens',
         'participation-acquets': 'Participation aux acquêts',
         'communaute-universelle': 'Communauté universelle',
-        'indivision': 'Régime de l\'indivision',
-        'separation': 'Régime de séparation'
       };
       return regimeMap[regime] || regime;
     };
@@ -195,36 +188,48 @@ export async function exportToPDF() {
       nbPreconisations: parsedPreconisations.length.toString()
     };
 
-    const exportData = {
-      variables: variables,
-      preconisations: parsedPreconisations
-    };
-
-    console.log('Données à exporter:', exportData);
-
-    // Vérifier que l'URL est configurée
-    if (GOOGLE_APPS_SCRIPT_CONFIG.SCRIPT_ID === 'YOUR_SCRIPT_ID') {
-      throw new Error('Veuillez configurer votre SCRIPT_ID dans lib/config.ts');
-    }
-
-    // Créer les données du formulaire
-    const formData = new FormData();
-    formData.append('data', JSON.stringify(exportData));
-
-    // Envoyer la requête
-    const response = await fetch(GOOGLE_APPS_SCRIPT_CONFIG.URL, {
+    console.log('🚀 Export PDF - Variables préparées:', Object.keys(variables).length);
+    
+    // Appeler notre nouvelle API route
+    const response = await fetch('/api/export-pdf', {
       method: 'POST',
-      body: formData,
-      mode: 'no-cors' // Nécessaire pour Google Apps Script
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        variables,
+        filename: `analyse-patrimoniale-${parsedIdentityData.firstName || 'client'}-${new Date().toISOString().slice(0, 10)}`
+      }),
     });
 
-    // Afficher un message de succès
-    alert('Export PDF en cours... Le document sera disponible dans votre Google Drive.');
+    console.log('📡 Réponse reçue, status:', response.status, response.statusText);
+    console.log('📊 Headers de la réponse:', Object.fromEntries(response.headers.entries()));
     
+    if (!response.ok) {
+      console.error('❌ Réponse HTTP non-OK:', response.status);
+      const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
+      console.error('❌ Détails de l\'erreur:', errorData);
+      throw new Error(errorData.error || `Erreur HTTP: ${response.status}`);
+    }
+
+    // Télécharger le fichier PDF
+    console.log('📄 Conversion en blob...');
+    const blob = await response.blob();
+    console.log('📄 Blob créé, taille:', blob.size, 'bytes, type:', blob.type);
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analyse-patrimoniale-${parsedIdentityData.firstName || 'client'}-${new Date().toISOString().slice(0, 10)}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+
+    console.log('✅ Export PDF réussi');
     return true;
 
   } catch (error) {
-    console.error('Erreur lors de l\'export PDF:', error);
+    console.error('❌ Erreur lors de l\'export PDF:', error);
     const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
     alert('Erreur lors de l\'export PDF: ' + errorMessage);
     return false;

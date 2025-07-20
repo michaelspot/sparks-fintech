@@ -166,6 +166,11 @@ const data = {
           url: "/simulations/valorisation",
           icon: TrendingDown,
         },
+        {
+          title: "Statut juridique",
+          url: "/simulations/statut-juridique",
+          icon: Briefcase,
+        },
       ],
     },
     {
