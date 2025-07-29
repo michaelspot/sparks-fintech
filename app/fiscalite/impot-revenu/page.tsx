@@ -311,6 +311,9 @@ export default function ImpotRevenuPage() {
         currentSituationFamiliale = mapMaritalStatusToSituationFiscale(maritalStatus)
       }
       
+      // Calculer les informations fiscales actuelles
+      const impotResult = calculateImpot(revenuImposable, nbParts)
+      
       const manualRevenus = revenus.filter((r) => r.source === "manual")
       const dataToSave = {
         revenus: manualRevenus, // Only save manually added/edited ones for this page
@@ -319,6 +322,10 @@ export default function ImpotRevenuPage() {
         deductionsImpot,
         reductionsImpot,
         creditImpot,
+        // Ajouter les nouvelles informations fiscales
+        trancheMarginaleDimposition: impotResult.trancheMarginal,
+        tauxMoyenDimposition: impotResult.tauxMoyen,
+        impotApresAvantages: impotResult.impotApresAvantages,
       }
       localStorage.setItem(LOCAL_STORAGE_KEY_IR, JSON.stringify(dataToSave))
     }
@@ -717,6 +724,16 @@ export default function ImpotRevenuPage() {
                       {impotApresAvantages.toLocaleString()} €
                       {impotApresAvantages < 0 && <span className="text-sm ml-2">(remboursement)</span>}
                     </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-sm font-medium">Tranche marginale</div>
+                    <div className="text-2xl font-bold">{trancheMarginal.toFixed(1)}%</div>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium">Taux moyen</div>
+                    <div className="text-2xl font-bold">{tauxMoyenImposition.toFixed(2)}%</div>
                   </div>
                 </div>
               </div>

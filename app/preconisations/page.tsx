@@ -12,12 +12,13 @@ import { Separator } from "@/components/ui/separator"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Spinner } from "@/components/ui/spinner"
-import { Lightbulb, FileText, Download, Volume2, TrendingUp, Shield, PiggyBank, Users, Gift, HeartHandshake, Check, ShoppingCart, X } from "lucide-react"
+import { Lightbulb, FileText, Download, Volume2, TrendingUp, Shield, PiggyBank, Users, Gift, HeartHandshake, Check, AlertCircle } from "lucide-react"
 import { exportToPDF as exportToPDFExternal } from "@/lib/pdf-export"
-import { loadTestDataToLocalStorage, checkCurrentData, clearTestData } from "@/lib/test-data"
+
 
 export default function RecommendationsPage() {
   // Utilisation du hook pour récupérer les données du client depuis le localStorage
@@ -64,12 +65,24 @@ export default function RecommendationsPage() {
   // États pour l'export PDF
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingFast, setIsExportingFast] = useState(false);
   const [pdfData, setPdfData] = useState<{pdf: string, filename: string} | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [exportProgress, setExportProgress] = useState(0);
   
   // Local storage keys
   const LOCAL_STORAGE_KEY_SELECTED = "selectedPreconisations"
   const LOCAL_STORAGE_KEY_PRIORITIES = "customPriorities"
+
+  // Fonction utilitaire pour obtenir la couleur de pastille selon la priorité
+  const getPriorityDotColor = (priority: "Haute" | "Moyenne" | "Basse") => {
+    switch (priority) {
+      case "Haute": return "bg-red-500"
+      case "Moyenne": return "bg-orange-500"
+      case "Basse": return "bg-green-500"
+      default: return "bg-gray-500"
+    }
+  }
 
   // Fonction pour ajouter ou supprimer une préconisation du panier
   const toggleSelectedPreconisation = (id: number) => {
@@ -84,10 +97,10 @@ export default function RecommendationsPage() {
 
   // Fonction pour exporter vers Google Docs et générer le PDF
   const exportToPDF = async () => {
-    setExportDialogOpen(true);
     setIsExporting(true);
     setExportError(null);
     setPdfData(null);
+    setExportProgress(0);
     
     try {
       // Utiliser les données du localStorage ou les données fallback
@@ -249,37 +262,36 @@ export default function RecommendationsPage() {
 
       // Fonction utilitaire pour appliquer les préfixes de formatage
       // 📝 GUIDE DES PRÉFIXES DISPONIBLES DANS GOOGLE DOCS :
-      // {{M-variable}} = Majuscule puis minuscule (ex: "MONSIEUR" → "Monsieur")
-      // {{m-variable}} = tout en minuscule (ex: "MONSIEUR" → "monsieur")
+      // {{M-variable}} = Majuscule au début (ex: "monsieur" → "Monsieur")
+      // {{mm-variable}} = tout en minuscule (ex: "MONSIEUR" → "monsieur")
       // {{MM-variable}} = tout en majuscule (ex: "monsieur" → "MONSIEUR")
-      // {{cap-variable}} = Première lettre de chaque mot en majuscule (ex: "jean dupont" → "Jean Dupont")
-      // {{eu-variable}} = format euros (ex: "1000" → "1 000,00 €")
-      // {{pct-variable}} = format pourcentage (ex: "15" → "15%")
-      // {{nb-variable}} = format nombre avec espaces (ex: "1000" → "1 000")
-      // {{k-variable}} = format milliers (ex: "1000" → "1k")
-      // {{ord-variable}} = format ordinal (ex: "1" → "1er", "2" → "2ème")
+      // {{eu-variable}} = format euros arrondi (ex: "1000" → "1 000 €")
+      // {{%-variable}} = format pourcentage (ex: "15" → "15%")
+      // {{block-variable}} = bloc conditionnel (sera géré séparément)
       const applyFormatPrefix = (value: string, prefix: string): string => {
-        if (!value) return '';
+        if (!value || value === '') return '';
         
         switch (prefix) {
-          case 'M': // Majuscule puis minuscule
+          case 'M': // Majuscule au début
             return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
-          case 'm': // tout en minuscule
+          case 'mm': // tout minuscule
             return value.toLowerCase();
-          case 'MM': // tout en majuscule
+          case 'MM': // tout majuscule
             return value.toUpperCase();
-          case 'cap': // Première lettre de chaque mot en majuscule
-            return value.replace(/\b\w/g, l => l.toUpperCase());
-          case 'eu': // format euros - arrondi à l'entier supérieur
-            const numValue = parseFloat(value.replace(/[^0-9.-]/g, ''));
-            if (isNaN(numValue)) return value;
-            const roundedValue = Math.ceil(numValue); // Arrondi à l'entier supérieur
-            return `${roundedValue.toLocaleString('fr-FR')} €`;
-          case 'pct': // format pourcentage - arrondi à l'entier
+          case 'eu': // format euros arrondi à l'entier au dessus
+            const euValue = parseFloat(value.replace(/[^0-9.-]/g, ''));
+            return isNaN(euValue) ? value : `${Math.ceil(euValue).toLocaleString('fr-FR')} €`;
+          case '%': // format pourcentage
             const pctValue = parseFloat(value.replace(/[^0-9.-]/g, ''));
-            if (isNaN(pctValue)) return value;
-            const roundedPct = Math.round(pctValue); // Arrondi à l'entier
-            return `${roundedPct} %`;
+            return isNaN(pctValue) ? value : `${Math.round(pctValue)}%`;
+          // Anciens préfixes conservés pour compatibilité
+          case 'cap': // Première lettre de chaque mot en majuscule
+            return value.split(' ').map(word => 
+              word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+            ).join(' ');
+          case 'pct': // ancien format pourcentage avec espace
+            const oldPctValue = parseFloat(value.replace(/[^0-9.-]/g, ''));
+            return isNaN(oldPctValue) ? value : `${Math.round(oldPctValue)} %`;
           case 'nb': // format nombre avec espaces
             const nbValue = parseFloat(value.replace(/[^0-9.-]/g, ''));
             return isNaN(nbValue) ? value : nbValue.toLocaleString('fr-FR');
@@ -299,7 +311,8 @@ export default function RecommendationsPage() {
       // Fonction pour générer toutes les variantes d'une variable avec préfixes
       const generateVariableVariants = (key: string, value: string): Record<string, string> => {
         const variants: Record<string, string> = {};
-        const prefixes = ['M', 'm', 'MM', 'cap', 'eu', 'pct', 'nb', 'k', 'ord'];
+        // Nouveaux préfixes selon les spécifications utilisateur + anciens pour compatibilité
+        const prefixes = ['M', 'mm', 'MM', 'eu', '%', 'cap', 'pct', 'nb', 'k', 'ord'];
         
         // Variable de base
         variants[key] = value;
@@ -500,9 +513,21 @@ export default function RecommendationsPage() {
         'birthPostalCode': clientInfo.birthPostalCode || "",
         'spouseBirthPostalCode': clientInfo.spouseBirthPostalCode || "",
         'nbChildren': clientInfo.children ? clientInfo.children.length.toString() : "0",
+        'birthCity': clientInfo.city || "",  // Ville de naissance (même que résidence pour simplifier)
+        'spouseBirthCity': clientInfo.spouseCity || "",
+        'legalCapacity': (clientInfo as any).legalCapacity || "",
+        'spouseLegalCapacity': (clientInfo as any).spouseLegalCapacity || "",
+        'mifClassification': (clientInfo as any).mifClassification || "",
+        
+        // Informations parents
+        'parent1Name': (clientInfo as any).parent1Name || "",
+        'parent2Name': (clientInfo as any).parent2Name || "",
         
         // Informations méta
         'dateGeneration': new Date().toLocaleDateString('fr-FR'),
+        'heureGeneration': new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        'anneeGeneration': new Date().getFullYear().toString(),
+        'moisGeneration': (new Date().getMonth() + 1).toString(),
         'nbPreconisations': selectedPreconisationsDetails.length.toString(),
         'fullName': `${clientInfo.firstName || ''} ${clientInfo.lastName || ''}`.trim(),
         'spouseFullName': clientInfo.spouseFirstName && clientInfo.spouseLastName ? 
@@ -724,22 +749,27 @@ export default function RecommendationsPage() {
         const pctFi = totalPatrimoine > 0 ? Math.round((totalFi / totalPatrimoine) * 100).toString() : '0';
         const pctPro = totalPatrimoine > 0 ? Math.round((totalPro / totalPatrimoine) * 100).toString() : '0';
         
-        const pctImmoVars = generateVariableVariants('totalImmo', pctImmo);
-        const pctFiVars = generateVariableVariants('totalFi', pctFi);
-        const pctProVars = generateVariableVariants('totalPro', pctPro);
-        
-        // Ajouter toutes les variables
+        // Ajouter toutes les variables de totaux avec toutes leurs variantes
         Object.assign(patrimoineVars, totalImmoVars, totalFiVars, totalProVars);
         
         // Ajouter spécifiquement les variables de pourcentage formatées
+        // Format ancien avec espace (pct-) : "15 %"
         patrimoineVars['pct-totalImmo'] = applyFormatPrefix(pctImmo, 'pct');
         patrimoineVars['pct-totalFi'] = applyFormatPrefix(pctFi, 'pct');
         patrimoineVars['pct-totalPro'] = applyFormatPrefix(pctPro, 'pct');
         
-        patrimoineVars['totalTitle'] = totalTitle.toString();
-        patrimoineVars['totalCom'] = totalCom.toString();
-        patrimoineVars['totalSpouseTitle'] = totalSpouseTitle.toString();
-        patrimoineVars['totalPat'] = totalPatrimoine.toString();
+        // Format nouveau sans espace (%-) : "15%" - pour correspondre exactement au tableau utilisateur
+        patrimoineVars['%-totalImmo'] = applyFormatPrefix(pctImmo, '%');
+        patrimoineVars['%-totalFi'] = applyFormatPrefix(pctFi, '%');
+        patrimoineVars['%-totalPro'] = applyFormatPrefix(pctPro, '%');
+        
+        // Variables de totaux par détention avec variantes complètes
+        const totalTitleVars = generateVariableVariants('totalTitle', totalTitle.toString());
+        const totalComVars = generateVariableVariants('totalCom', totalCom.toString());
+        const totalSpouseTitleVars = generateVariableVariants('totalSpouseTitle', totalSpouseTitle.toString());
+        const totalPatVars = generateVariableVariants('totalPat', totalPatrimoine.toString());
+        
+        Object.assign(patrimoineVars, totalTitleVars, totalComVars, totalSpouseTitleVars, totalPatVars);
         
         return patrimoineVars;
       };
@@ -752,6 +782,48 @@ export default function RecommendationsPage() {
 
       // Générer les blocs conditionnels
       const conditionalBlocks = generateConditionalBlocks(baseVariables, clientInfo);
+      
+      // Fonction pour générer les blocs conditionnels avec préfixe "block-"
+      const generateBlockVariables = (baseVars: Record<string, string>): Record<string, string> => {
+        const blockVars: Record<string, string> = {};
+        
+        // Bloc enfants - affiché seulement si nbChildren > 0
+        const nbChildren = parseInt(baseVars.nbChildren || "0");
+        if (nbChildren > 0) {
+          blockVars['block-childrenInfo'] = `Nombre d'enfants : ${nbChildren}`;
+          blockVars['block-childrenPresent'] = 'true';
+        } else {
+          blockVars['block-childrenInfo'] = '';
+          blockVars['block-childrenPresent'] = 'false';
+        }
+        
+        // Bloc conjoint - affiché seulement si conjoint existe
+        if (baseVars.spouseFirstName && baseVars.spouseLastName) {
+          blockVars['block-spouseInfo'] = `Conjoint : ${baseVars.spouseFullName}`;
+          blockVars['block-spousePresent'] = 'true';
+        } else {
+          blockVars['block-spouseInfo'] = '';
+          blockVars['block-spousePresent'] = 'false';
+        }
+        
+        // Bloc mariage - affiché seulement si date de mariage existe
+        if (baseVars.marriageDate) {
+          blockVars['block-marriageInfo'] = `Marié(e) le ${baseVars.marriageDate}`;
+          if (baseVars.marriagePlace) {
+            blockVars['block-marriageInfo'] += ` à ${baseVars.marriagePlace}`;
+          }
+          blockVars['block-marriagePresent'] = 'true';
+        } else {
+          blockVars['block-marriageInfo'] = '';
+          blockVars['block-marriagePresent'] = 'false';
+        }
+        
+        return blockVars;
+      };
+      
+      // Ajouter les blocs conditionnels aux variables de base
+      const blockVariables = generateBlockVariables(baseVariables);
+      Object.assign(baseVariables, blockVariables);
       
       // Générer toutes les variantes avec préfixes pour chaque variable
       const variables: Record<string, string> = {};
@@ -773,9 +845,53 @@ export default function RecommendationsPage() {
         title: variables.title,
         spouseTitle: variables.spouseTitle
       });
-      console.log('📄 Nombre de préconisations:', selectedPreconisationsDetails.length);
       
-      // Ajouter les préconisations individuellement
+      // 🔍 DEBUG: Logs spécifiques patrimoine
+      console.log('🏠 Variables patrimoine immobilier:', {
+        totalImmo: variables.totalImmo,
+        'eu-totalImmo': variables['eu-totalImmo'],
+        'pct-totalImmo': variables['pct-totalImmo'],
+        bienImmobilier1: variables.bienImmobilier1,
+        'M-bienImmobilier1': variables['M-bienImmobilier1'],
+        'eu-titleImmo1': variables['eu-titleImmo1'],
+        'eu-comImmo1': variables['eu-comImmo1'],
+        'eu-spouseTitleImmo1': variables['eu-spouseTitleImmo1']
+      });
+      
+      console.log('💰 Variables totaux finaux:', {
+        'eu-totalTitle': variables['eu-totalTitle'],
+        'eu-totalCom': variables['eu-totalCom'],
+        'eu-totalSpouseTitle': variables['eu-totalSpouseTitle'],
+        'eu-totalPat': variables['eu-totalPat']
+      });
+      
+
+      
+      // Compter les variables non vides
+      const nonEmptyVars = Object.entries(variables).filter(([key, value]) => value !== '' && value !== null && value !== undefined);
+      console.log(`📈 Total variables générées: ${Object.keys(variables).length}, Non vides: ${nonEmptyVars.length}`);
+      
+      // Logs spécifiques localStorage
+      const realEstateData = localStorage.getItem('patrimoineImmobilierInfo');
+      const financialData = localStorage.getItem('patrimoineFinancierInfo');
+      const professionalData = localStorage.getItem('patrimoineProfessionnelInfo');
+      
+      console.log('💾 Données patrimoine localStorage:', {
+        immobilier: realEstateData ? JSON.parse(realEstateData).length + ' biens' : 'Aucune donnée',
+        financier: financialData ? JSON.parse(financialData).length + ' biens' : 'Aucune donnée',
+        professionnel: professionalData ? JSON.parse(professionalData).length + ' biens' : 'Aucune donnée'
+      });
+      setExportProgress(10);
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      console.log('📄 Nombre de préconisations:', selectedPreconisationsDetails.length);
+      setExportProgress(20);
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Ajouter les préconisations individuellement  
+      setExportProgress(30);
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       selectedPreconisationsDetails.forEach((preco, index) => {
         const num = index + 1;
         variables[`preconisation_${num}_titre`] = preco.title;
@@ -839,12 +955,61 @@ export default function RecommendationsPage() {
       variables['preconisations_client'] = preconisationsClientText;
       
       // Utiliser les données réelles du client pour les revenus et charges
-      // Récupérer les revenus et charges du client depuis la structure correcte
-      const revenus = dataToUse.finances?.revenus || [];
-      const charges = dataToUse.finances?.charges || [];
+      // Essayer plusieurs sources de données pour les revenus et charges
+      let revenus: FinancialItem[] = [];
+      let charges: FinancialItem[] = [];
       
-      console.log('Revenus utilisés:', revenus);
-      console.log('Charges utilisées:', charges);
+      // 1. Essayer depuis la structure dataToUse.finances
+      if (dataToUse.finances?.revenus) {
+        revenus = dataToUse.finances.revenus;
+      }
+      if (dataToUse.finances?.charges) {
+        charges = dataToUse.finances.charges;
+      }
+      
+      // 2. Essayer depuis localStorage si pas trouvé dans dataToUse
+      if (revenus.length === 0) {
+        try {
+          const revenusData = localStorage.getItem('revenusChargesInfo');
+          if (revenusData) {
+            const parsed = JSON.parse(revenusData);
+            revenus = parsed.revenus || [];
+            charges = parsed.charges || [];
+          }
+        } catch (error) {
+          console.error('Erreur parsing revenus/charges:', error);
+        }
+      }
+      
+      // 3. Essayer d'autres clés localStorage possibles
+      if (revenus.length === 0) {
+        try {
+          const revenusOnly = localStorage.getItem('revenus');
+          const chargesOnly = localStorage.getItem('charges');
+          if (revenusOnly) revenus = JSON.parse(revenusOnly);
+          if (chargesOnly) charges = JSON.parse(chargesOnly);
+        } catch (error) {
+          console.error('Erreur parsing revenus/charges séparés:', error);
+        }
+      }
+      
+      // 4. Données de test si aucune donnée trouvée
+      if (revenus.length === 0) {
+        console.log('⚠️ Aucune donnée revenus/charges trouvée, utilisation de données de test');
+        revenus = [
+          { intitule: 'Salaire net', montant: 3500 },
+          { intitule: 'Primes', montant: 800 }
+        ];
+        charges = [
+          { intitule: 'Crédit immobilier', montant: 1200 },
+          { intitule: 'Assurances', montant: 300 }
+        ];
+      }
+      
+      console.log('💰 Revenus finaux utilisés:', revenus.length, 'entrées');
+      console.log('💸 Charges finales utilisées:', charges.length, 'entrées');
+      console.log('🔍 Détail revenus:', revenus);
+      console.log('🔍 Détail charges:', charges);
       
       // Définir les interfaces pour les revenus et charges
       interface FinancialItem {
@@ -856,25 +1021,70 @@ export default function RecommendationsPage() {
       const totalRevenus = revenus.reduce((sum: number, item: FinancialItem) => sum + (item.montant || 0), 0);
       const totalCharges = charges.reduce((sum: number, item: FinancialItem) => sum + (item.montant || 0), 0);
       
-      // Ajouter les revenus aux variables
+      // Ajouter les revenus aux variables avec tous les préfixes de formatage
       revenus.forEach((revenu: FinancialItem, index: number) => {
         if (index < 10) { // Limiter à 10 entrées
-          variables[`intitule_revenu${index + 1}`] = revenu.intitule || '';
-          variables[`montant_revenu${index + 1}`] = revenu.montant ? `${revenu.montant.toLocaleString()} €` : '';
+          // Variables de base
+          const intituleKey = `intitule_revenu${index + 1}`;
+          const montantKey = `montant_revenu${index + 1}`;
+          
+          // Générer toutes les variantes pour l'intitulé
+          const intituleVars = generateVariableVariants(intituleKey, revenu.intitule || '');
+          Object.assign(variables, intituleVars);
+          
+          // Générer toutes les variantes pour le montant
+          if (revenu.montant) {
+            const montantVars = generateVariableVariants(montantKey, revenu.montant.toString());
+            Object.assign(variables, montantVars);
+          } else {
+            variables[montantKey] = '';
+            variables[`eu-${montantKey}`] = '';
+          }
         }
       });
       
-      // Ajouter les charges aux variables
+      // Ajouter les charges aux variables avec tous les préfixes de formatage
       charges.forEach((charge: FinancialItem, index: number) => {
         if (index < 10) { // Limiter à 10 entrées
-          variables[`intitule_charge${index + 1}`] = charge.intitule || '';
-          variables[`montant_charge${index + 1}`] = charge.montant ? `${charge.montant.toLocaleString()} €` : '';
+          // Variables de base
+          const intituleKey = `intitule_charge${index + 1}`;
+          const montantKey = `montant_charge${index + 1}`;
+          
+          // Générer toutes les variantes pour l'intitulé
+          const intituleVars = generateVariableVariants(intituleKey, charge.intitule || '');
+          Object.assign(variables, intituleVars);
+          
+          // Générer toutes les variantes pour le montant
+          if (charge.montant) {
+            const montantVars = generateVariableVariants(montantKey, charge.montant.toString());
+            Object.assign(variables, montantVars);
+          } else {
+            variables[montantKey] = '';
+            variables[`eu-${montantKey}`] = '';
+          }
         }
       });
       
-      // Ajouter les totaux
-      variables['montant_total__revenus'] = `${totalRevenus.toLocaleString()} €`;
-      variables['montant_total__charges'] = `${totalCharges.toLocaleString()} €`;
+      // Ajouter les totaux avec toutes les variantes
+      const totalRevenusVars = generateVariableVariants('montant_total__revenus', totalRevenus.toString());
+      const totalChargesVars = generateVariableVariants('montant_total__charges', totalCharges.toString());
+      Object.assign(variables, totalRevenusVars, totalChargesVars);
+      
+      // 🔍 DEBUG: Logs spécifiques revenus et charges (après génération)
+      console.log('💰 Variables revenus et charges générées:', {
+        'revenus source': `${revenus.length} entrées`,
+        'charges source': `${charges.length} entrées`,
+        'total revenus': totalRevenus,
+        'total charges': totalCharges,
+        intitule_revenu1: variables.intitule_revenu1,
+        montant_revenu1: variables.montant_revenu1,
+        'eu-montant_revenu1': variables['eu-montant_revenu1'],
+        intitule_charge1: variables.intitule_charge1,
+        montant_charge1: variables.montant_charge1,
+        'eu-montant_charge1': variables['eu-montant_charge1'],
+        'eu-montant_total__revenus': variables['eu-montant_total__revenus'],
+        'eu-montant_total__charges': variables['eu-montant_total__charges']
+      });
       
       // Vider les variables non utilisées (pour les tableaux)
       for (let i = 1; i <= 10; i++) {
@@ -889,8 +1099,40 @@ export default function RecommendationsPage() {
       }
       
       // 🧩 NETTOYAGE INTELLIGENT DES LIGNES VIDES DANS LES TABLEAUX
-      // Instructions pour Google Apps Script :
-      // - Supprimer les lignes de tableau où TOUTES les colonnes sont vides
+      // Instructions améliorées pour Google Apps Script :
+      // - Supprimer automatiquement toutes les lignes de tableau vides
+      // - Détecter les patterns de variables pour chaque type de tableau
+      
+      // Ajouter des variables de contrôle pour le nettoyage avancé
+      variables['_CLEAN_EMPTY_LINES'] = 'true';
+      variables['_CLEAN_TABLE_ROWS'] = 'true';
+      variables['_CLEAN_REVENUE_ROWS'] = 'true';
+      variables['_CLEAN_PATRIMOINE_ROWS'] = 'true';
+      
+      // Identifier les patterns de variables pour nettoyage automatique
+      const cleaningPatterns = {
+        // Revenus et charges (lignes 3-10 à nettoyer si vides)
+        revenus: [
+          'intitule_revenu3', 'intitule_revenu4', 'intitule_revenu5', 'intitule_revenu6',
+          'intitule_revenu7', 'intitule_revenu8', 'intitule_revenu9', 'intitule_revenu10'
+        ],
+        charges: [
+          'intitule_charge3', 'intitule_charge4', 'intitule_charge5', 'intitule_charge6',
+          'intitule_charge7', 'intitule_charge8', 'intitule_charge9', 'intitule_charge10'
+        ],
+        // Patrimoine (lignes de biens vides à nettoyer)
+        biens: [
+          'bienImmobilier3', 'bienImmobilier4', 'bienImmobilier5', 'bienImmobilier6',
+          'bienImmobilier7', 'bienImmobilier8', 'bienImmobilier9', 'bienImmobilier10',
+          'bienFinancier3', 'bienFinancier4', 'bienFinancier5', 'bienFinancier6',
+          'bienFinancier7', 'bienFinancier8', 'bienFinancier9', 'bienFinancier10',
+          'bienProfessionnel3', 'bienProfessionnel4', 'bienProfessionnel5', 'bienProfessionnel6',
+          'bienProfessionnel7', 'bienProfessionnel8', 'bienProfessionnel9', 'bienProfessionnel10'
+        ]
+      };
+      
+      // Envoyer les patterns de nettoyage à Google Apps Script
+      variables['_CLEANING_PATTERNS'] = JSON.stringify(cleaningPatterns);
       
       // Identifier les variables vides pour le nettoyage
       const emptyVariables: string[] = [];
@@ -900,72 +1142,67 @@ export default function RecommendationsPage() {
         }
       });
       
+      console.log('🧩 Variables vides à nettoyer:', emptyVariables.length, 'sur', Object.keys(variables).length);
+      
       // OPTIMISATION: Filtrer les variables vides inutiles (garder seulement celles nécessaires)
       const filteredVariables: { [key: string]: any } = {};
       Object.entries(variables).forEach(([key, value]) => {
         // Garder les variables avec valeur OU les variables principales vides (pour template)
         if (value !== '' && value !== null && value !== undefined) {
           filteredVariables[key] = value;
-        } else if (key.match(/^(bienImmobilier|titleImmo|comImmo|spouseTitleImmo|bienFinancier|titleFi|comFi|spouseTitleFi|bienProfessionnel|titlePro|comPro|spouseTitlePro|eu-)/)) {
+        } else if (key.match(/^(bienImmobilier|titleImmo|comImmo|spouseTitleImmo|bienFinancier|titleFi|comFi|spouseTitleFi|bienProfessionnel|titlePro|comPro|spouseTitlePro|eu-|M-|pct-|%-|mm-|MM-|cap-|nb-|k-|ord-)/)) {
           filteredVariables[key] = '';
         }
       });
       
-      // Ajouter les variables de contrôle
-      filteredVariables['_CLEAN_EMPTY_ROWS'] = 'smart';
-      filteredVariables['_CLEAN_TABLES'] = 'patrimoine,finances';
-      filteredVariables['_EMPTY_VARIABLES'] = emptyVariables.join(',');
-      
       console.log(`⚡ Optimisation: ${Object.keys(variables).length} → ${Object.keys(filteredVariables).length} variables`);
       
-      // 🔧 URL Google Apps Script
-      const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbztzaYKReSnMMi_vdJiuOn9-f4IFN8EtsO6q09rzSesgrwxO0JSByMSTfvQJRIImQBrKw/exec';
+      // 🚀 NOUVEAU SYSTÈME - Appel API Next.js directement (plus d'Apps Script!)
+      console.log('🚀 Envoi vers API Next.js pour génération PDF...');
       
-      console.log('🚀 Envoi optimisé vers Google Apps Script...');
-      
-      const response = await fetch(APPS_SCRIPT_URL, {
+      const response = await fetch('/api/export-pdf', {
         method: 'POST',
         headers: {
-          'Content-Type': 'text/plain',
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ variables: filteredVariables }),
+        body: JSON.stringify({ 
+          variables: filteredVariables,
+          filename: `preconisations_${clientInfo.firstName}_${clientInfo.lastName}_${new Date().toISOString().split('T')[0]}`
+        }),
       });
       
-      console.log('Réponse du serveur:', response.status, response.statusText);
+      console.log('Réponse API:', response.status, response.statusText);
+      console.log('Temps de traitement:', response.headers.get('X-Processing-Time'));
       
       if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
+        const errorData = await response.json();
+        throw new Error(`Erreur API: ${response.status} - ${errorData.error || response.statusText}`);
       }
       
-      const result = await response.json();
-      console.log('Résultat parsé:', result);
+      setExportProgress(90);
+      console.log('✅ PDF généré avec succès via API Next.js!');
       
-      if (result.success) {
-        console.log('✅ PDF généré avec succès!');
+      // Le PDF arrive directement comme stream depuis l'API
+      const pdfBlob = await response.blob();
+      
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `preconisations_${clientInfo.firstName}_${clientInfo.lastName}_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
         
-        // Télécharger automatiquement le PDF
-        const byteCharacters = atob(result.pdf);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: 'application/pdf' });
-        
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = result.filename || `preconisations_${clientInfo.firstName}_${clientInfo.lastName}_${new Date().toISOString().split('T')[0]}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        
-        // Définir pdfData pour afficher le message de succès
-        setPdfData(result);
-      } else {
-        setExportError(result.error || 'Erreur lors de la génération du PDF');
-      }
+      // Finaliser la progress bar
+      setExportProgress(100);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Fermer automatiquement le dialog après téléchargement
+      setTimeout(() => {
+        setExportDialogOpen(false);
+        setExportProgress(0);
+      }, 1500);
       
     } catch (error) {
       console.error('Erreur lors de l\'export:', error);
@@ -975,31 +1212,1089 @@ export default function RecommendationsPage() {
       setIsExporting(false);
     }
   };
-  
-  // Fonction pour télécharger le PDF
-  const downloadPDF = () => {
-    if (!pdfData) return;
+
+  // Fonction pour export PDF rapide via HTML
+  const exportToPDFRapide = async () => {
+    setIsExportingFast(true);
     
-    const byteCharacters = atob(pdfData.pdf);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    try {
+      const startTime = Date.now();
+      console.log('🚀 Début export PDF rapide HTML');
+      
+      // Fonctions utilitaires pour le formatage
+      const applyFormatPrefix = (value: string, prefix: string): string => {
+        if (!value || value === '') return '';
+        
+        switch (prefix) {
+          case 'M': // Majuscule au début
+            return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+          case 'mm': // tout minuscule
+            return value.toLowerCase();
+          case 'MM': // tout majuscule
+            return value.toUpperCase();
+          case 'eu': // format euros arrondi à l'entier au dessus
+            const euValue = parseFloat(value.replace(/[^0-9.-]/g, ''));
+            return isNaN(euValue) ? value : `${Math.ceil(euValue).toLocaleString('fr-FR')} €`;
+          case '%': // format pourcentage
+            const pctValue = parseFloat(value.replace(/[^0-9.-]/g, ''));
+            return isNaN(pctValue) ? value : `${Math.round(pctValue)}%`;
+          // Anciens préfixes conservés pour compatibilité
+          case 'cap': // Première lettre de chaque mot en majuscule
+            return value.split(' ').map(word => 
+              word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+            ).join(' ');
+          case 'pct': // ancien format pourcentage avec espace
+            const oldPctValue = parseFloat(value.replace(/[^0-9.-]/g, ''));
+            return isNaN(oldPctValue) ? value : `${Math.round(oldPctValue)} %`;
+          case 'nb': // format nombre avec espaces
+            const nbValue = parseFloat(value.replace(/[^0-9.-]/g, ''));
+            return isNaN(nbValue) ? value : nbValue.toLocaleString('fr-FR');
+          case 'k': // format milliers
+            const kValue = parseFloat(value.replace(/[^0-9.-]/g, ''));
+            return isNaN(kValue) ? value : kValue >= 1000 ? `${Math.round(kValue/1000)}k` : kValue.toString();
+          case 'ord': // format ordinal
+            const ordValue = parseInt(value.replace(/[^0-9]/g, ''));
+            if (isNaN(ordValue)) return value;
+            if (ordValue === 1) return '1er';
+            return `${ordValue}ème`;
+          case 'm2': // format m² (mètres carrés)
+            const m2Value = parseFloat(value.replace(/[^0-9.-]/g, ''));
+            return isNaN(m2Value) ? value : `${Math.round(m2Value).toLocaleString('fr-FR')} m²`;
+          case 'block': // blocs conditionnels - affiche seulement si valeur non vide
+            return value && value.trim() !== '' ? value : '';
+          default:
+            return value;
+        }
+      };
+      
+      // Fonction pour générer toutes les variantes d'une variable avec préfixes
+      const generateVariableVariants = (key: string, value: string): Record<string, string> => {
+        const variants: Record<string, string> = {};
+        // Nouveaux préfixes selon les spécifications utilisateur + anciens pour compatibilité
+        const prefixes = ['M', 'mm', 'MM', 'eu', '%', 'block', 'cap', 'pct', 'nb', 'k', 'ord', 'm2'];
+        
+        // Variable de base
+        variants[key] = value;
+        
+        // Variantes avec préfixes
+        prefixes.forEach(prefix => {
+          variants[`${prefix}-${key}`] = applyFormatPrefix(value, prefix);
+        });
+        
+        return variants;
+      };
+      
+      // Récupérer les données directement depuis localStorage
+      let identityData: any = {};
+      try {
+        const identityDataStr = localStorage.getItem('identityPersonalInfo');
+        if (identityDataStr) {
+          identityData = JSON.parse(identityDataStr);
+          console.log('🔍 Données identité récupérées:', identityData);
+        } else {
+          console.warn('Aucune donnée identité trouvée dans localStorage');
+        }
+      } catch (error) {
+        console.error('Erreur lors de la lecture des données identité:', error);
+      }
+      
+      // Récupérer les préconisations sélectionnées avec leurs priorités
+      const selectedPreconisationsDetails = preconisations
+        .filter(preco => selectedPreconisations.includes(preco.id))
+        .sort((a, b) => {
+          const priorities = { "Haute": 3, "Moyenne": 2, "Basse": 1 };
+          const aPriority = customPriorities[a.id] || a.priority;
+          const bPriority = customPriorities[b.id] || b.priority;
+          return priorities[bPriority] - priorities[aPriority];
+        });
+      
+      // Générer toutes les variables
+      let variables: Record<string, any> = {};
+      
+      // Utiliser les données d'identité directement
+      const personal = identityData;
+      const children = identityData.children || [];
+      
+      // Fonctions utilitaires pour formater les données
+      const formatDate = (dateString: string): string => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return dateString;
+        return date.toLocaleDateString('fr-FR');
+      };
+      
+      const formatTitle = (title: string): string => {
+        if (!title) return '';
+        return title === 'monsieur' ? 'Monsieur' : title === 'madame' ? 'Madame' : title;
+      };
+      
+      const getFullName = (firstName: string, lastName: string): string => {
+        return `${firstName || ''} ${lastName || ''}`.trim();
+      };
+      
+      const getCspLabel = (cspValue: string): string => {
+        if (!cspValue) return '';
+        const cspOptions = [
+          { value: "11", label: "Agriculteurs sur petite exploitation" },
+          { value: "12", label: "Agriculteurs sur moyenne exploitation" },
+          { value: "13", label: "Agriculteurs sur grande exploitation" },
+          { value: "21", label: "Artisans" },
+          { value: "22", label: "Commerçants et assimilés" },
+          { value: "23", label: "Chefs d'entreprise de 10 salariés ou plus" },
+          { value: "31", label: "Professions libérales" },
+          { value: "33", label: "Cadres de la fonction publique" },
+          { value: "34", label: "Professeurs, professions scientifiques" },
+          { value: "35", label: "Professions de l'information, des arts et des spectacles" },
+          { value: "37", label: "Cadres administratifs et commerciaux d'entreprise" },
+          { value: "38", label: "Ingénieurs et cadres techniques d'entreprise" }
+        ];
+        const option = cspOptions.find(opt => opt.value === cspValue);
+        return option ? option.label : cspValue;
+      };
+      
+      const getMatrimonialRegimeLabel = (regime: string): string => {
+        const regimes = {
+          'communaute-reduite': 'Communauté réduite aux acquêts',
+          'communaute-universelle': 'Communauté universelle',
+          'separation-biens': 'Séparation de biens',
+          'participation-acquets': 'Participation aux acquêts'
+        };
+        return regimes[regime as keyof typeof regimes] || regime;
+      };
+      
+      // Fonction utilitaire pour obtenir le libellé du statut marital accordé selon le genre (comme dans l'export Google Docs)
+      const getMaritalStatusLabel = (status: string, title: string): string => {
+        if (!status) return '';
+        const isFeminine = title === 'madame' || title === 'Madame';
+        
+        const statusMap: { [key: string]: string } = {
+          'marie': isFeminine ? 'Mariée' : 'Marié',
+          'celibataire': 'Célibataire',
+          'divorce': isFeminine ? 'Divorcée' : 'Divorcé',
+          'veuf': isFeminine ? 'Veuve' : 'Veuf',
+          'pacs': isFeminine ? 'Pacsée' : 'Pacsé',
+          'pacse': isFeminine ? 'Pacsée' : 'Pacsé'
+        };
+        return statusMap[status] || status;
+      };
+      
+      // Variables d'identité complètes du client principal
+      Object.assign(variables, generateVariableVariants('title', formatTitle(personal.title || '')));
+      Object.assign(variables, generateVariableVariants('firstName', personal.firstName || ''));
+      Object.assign(variables, generateVariableVariants('lastName', personal.lastName || ''));
+      Object.assign(variables, generateVariableVariants('birthName', personal.birthName || ''));
+      Object.assign(variables, generateVariableVariants('fullName', getFullName(personal.firstName || '', personal.lastName || '')));
+      Object.assign(variables, generateVariableVariants('age', personal.age ? `${personal.age} ans` : ''));
+      Object.assign(variables, generateVariableVariants('birthDate', formatDate(personal.birthDate || '')));
+      Object.assign(variables, generateVariableVariants('birthPostalCode', personal.birthPostalCode || ''));
+      Object.assign(variables, generateVariableVariants('city', personal.city || ''));
+      Object.assign(variables, generateVariableVariants('country', personal.country || 'France'));
+      Object.assign(variables, generateVariableVariants('nationality', personal.nationality || 'Française'));
+      Object.assign(variables, generateVariableVariants('legalCapacity', personal.legalCapacity || ''));
+      Object.assign(variables, generateVariableVariants('mifClassification', personal.mifClassification || ''));
+      Object.assign(variables, generateVariableVariants('retirementAge', personal.retirementAge?.toString() || ''));
+      
+      // Variables professionnelles du client
+      Object.assign(variables, generateVariableVariants('profession', personal.profession || ''));
+      Object.assign(variables, generateVariableVariants('company', personal.company || ''));
+      Object.assign(variables, generateVariableVariants('csp', getCspLabel(personal.csp || '')));
+      
+      // Variables de situation familiale
+      Object.assign(variables, generateVariableVariants('maritalStatus', getMaritalStatusLabel(personal.maritalStatus || '', personal.title || '')));
+      Object.assign(variables, generateVariableVariants('marriageDate', formatDate(personal.marriageDate || '')));
+      Object.assign(variables, generateVariableVariants('marriagePlace', personal.marriagePlace || ''));
+      Object.assign(variables, generateVariableVariants('matrimonialRegime', getMatrimonialRegimeLabel(personal.matrimonialRegime || '')));
+      Object.assign(variables, generateVariableVariants('nbChildren', (children.length || 0).toString()));
+      
+      // Variables complètes du conjoint
+      Object.assign(variables, generateVariableVariants('spouseTitle', formatTitle(personal.spouseTitle || '')));
+      Object.assign(variables, generateVariableVariants('spouseFirstName', personal.spouseFirstName || ''));
+      Object.assign(variables, generateVariableVariants('spouseLastName', personal.spouseLastName || ''));
+      Object.assign(variables, generateVariableVariants('spouseBirthName', personal.spouseBirthName || ''));
+      Object.assign(variables, generateVariableVariants('spouseFullName', getFullName(personal.spouseFirstName || '', personal.spouseLastName || '')));
+      Object.assign(variables, generateVariableVariants('spouseAge', personal.spouseAge ? `${personal.spouseAge} ans` : ''));
+      Object.assign(variables, generateVariableVariants('spouseBirthDate', formatDate(personal.spouseBirthDate || '')));
+      Object.assign(variables, generateVariableVariants('spouseBirthPostalCode', personal.spouseBirthPostalCode || ''));
+      Object.assign(variables, generateVariableVariants('spouseCity', personal.spouseCity || ''));
+      Object.assign(variables, generateVariableVariants('spouseCountry', personal.spouseCountry || 'France'));
+      Object.assign(variables, generateVariableVariants('spouseNationality', personal.spouseNationality || 'Française'));
+      Object.assign(variables, generateVariableVariants('spouseLegalCapacity', personal.spouseLegalCapacity || ''));
+      Object.assign(variables, generateVariableVariants('spouseRetirementAge', personal.spouseRetirementAge?.toString() || ''));
+      
+      // Variables professionnelles du conjoint
+      Object.assign(variables, generateVariableVariants('spouseProfession', personal.spouseProfession || ''));
+      Object.assign(variables, generateVariableVariants('spouseCompany', personal.spouseCompany || ''));
+      Object.assign(variables, generateVariableVariants('spouseCsp', getCspLabel(personal.spouseCsp || '')));
+      
+      // Variables supplémentaires (pour les noms des parents si disponibles)
+      const parent1Name = children.length > 0 && children[0] ? personal.firstName || '' : '';
+      const parent2Name = children.length > 0 && children[0] ? personal.spouseFirstName || '' : '';
+      Object.assign(variables, generateVariableVariants('parent1Name', parent1Name));
+      Object.assign(variables, generateVariableVariants('parent2Name', parent2Name));
+      
+      // Variable birthCity pour le client principal (manquante dans la section précédente)
+      Object.assign(variables, generateVariableVariants('birthCity', personal.city || ''));
+      Object.assign(variables, generateVariableVariants('spouseBirthCity', personal.spouseCity || ''));
+      
+      // Variables enfants
+      Object.assign(variables, generateVariableVariants('numberOfChildren', children.length.toString()));
+      
+      // Génération des blocs conditionnels (même logique que l'export Google Docs)
+      const generateConditionalBlocks = (baseVariables: Record<string, string>, clientInfo: any): Record<string, string> => {
+        const conditionalBlocks: Record<string, string> = {};
+        
+        // Fonction utilitaire pour calculer l'âge à partir de la date de naissance
+        const calculateAgeFromBirthDate = (birthDate: string): string => {
+          if (!birthDate) return 'Age non spécifié';
+          
+          try {
+            const birth = new Date(birthDate);
+            const today = new Date();
+            let age = today.getFullYear() - birth.getFullYear();
+            const monthDiff = today.getMonth() - birth.getMonth();
+            
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+              age--;
+            }
+            
+            return age.toString();
+          } catch (error) {
+            return 'Age non spécifié';
+          }
+        };
+        
+        // Bloc conditionnel pour les enfants - VERSION DÉTAILLÉE
+        const children = clientInfo.children || [];
+        if (children.length > 0) {
+          const childrenCount = children.length;
+          let childrenText = `Vous avez ${childrenCount} enfant${childrenCount > 1 ? 's' : ''} à charge :\n`;
+          
+          children.forEach((child: any, index: number) => {
+            const childName = child.firstName || `Enfant ${index + 1}`;
+            
+            // Calculer l'âge à partir de la date de naissance ou utiliser l'âge saisi
+            let childAge = 'Age non spécifié';
+            if (child.birthDate) {
+              childAge = calculateAgeFromBirthDate(child.birthDate);
+            } else if (child.age) {
+              childAge = child.age.toString();
+            }
+            
+            // Déterminer la parenté
+            let parentageText = '';
+            if (child.parentage === 'commun') {
+              parentageText = 'enfant commun';
+            } else if (child.parentage === 'propre_parent1') {
+              const parent1Name = clientInfo.firstName || 'Parent 1';
+              parentageText = `enfant propre à ${parent1Name}`;
+            } else if (child.parentage === 'propre_parent2') {
+              const parent2Name = clientInfo.spouseFirstName || 'Parent 2';
+              parentageText = `enfant propre à ${parent2Name}`;
+            } else {
+              parentageText = 'parenté non spécifiée';
+            }
+            
+            childrenText += `- ${childName}, qui a ${childAge} ans, ${parentageText}`;
+            if (index < children.length - 1) {
+              childrenText += '\n';
+            }
+          });
+          
+          conditionalBlocks['childrenBlock'] = childrenText;
+        } else {
+          conditionalBlocks['childrenBlock'] = '';
+        }
+        
+        // Bloc conditionnel pour le régime matrimonial
+        const matrimonialRegime = baseVariables.matrimonialRegime;
+        if (matrimonialRegime && matrimonialRegime.trim()) {
+          conditionalBlocks['matrimonialRegimeBlock'] = `(${matrimonialRegime})`;
+        } else {
+          conditionalBlocks['matrimonialRegimeBlock'] = '';
+        }
+        
+        // Bloc conditionnel pour la date et lieu de naissance
+        const birthDate = baseVariables.birthDate;
+        const city = baseVariables.city;
+        if (birthDate && city) {
+          conditionalBlocks['birthInfoBlock'] = `Né(e) le ${birthDate} à ${city}`;
+        } else if (birthDate) {
+          conditionalBlocks['birthInfoBlock'] = `Né(e) le ${birthDate}`;
+        } else {
+          conditionalBlocks['birthInfoBlock'] = '';
+        }
+        
+        // Bloc conditionnel pour le conjoint
+        const spouseFullName = baseVariables.spouseFullName;
+        if (spouseFullName && spouseFullName.trim()) {
+          conditionalBlocks['spouseBlock'] = `Conjoint : ${spouseFullName}`;
+        } else {
+          conditionalBlocks['spouseBlock'] = '';
+        }
+        
+        // Bloc conditionnel pour la profession
+        const profession = baseVariables.profession;
+        const company = baseVariables.company;
+        if (profession && profession !== 'Non spécifié') {
+          if (company && company.trim()) {
+            conditionalBlocks['professionBlock'] = `${profession} chez ${company}`;
+          } else {
+            conditionalBlocks['professionBlock'] = profession;
+          }
+        } else {
+          conditionalBlocks['professionBlock'] = '';
+        }
+        
+        // Maintenir aussi les variables block-* pour compatibilité
+        if (children.length > 0) {
+          conditionalBlocks['block-childrenInfo'] = `Nombre d'enfants : ${children.length}`;
+          conditionalBlocks['block-childrenPresent'] = 'true';
+        } else {
+          conditionalBlocks['block-childrenInfo'] = '';
+          conditionalBlocks['block-childrenPresent'] = 'false';
+        }
+        
+        if (personal.spouseFirstName) {
+          conditionalBlocks['block-spouseInfo'] = `Conjoint : ${personal.spouseFirstName} ${personal.spouseLastName || ''}`;
+          conditionalBlocks['block-spousePresent'] = 'true';
+        } else {
+          conditionalBlocks['block-spouseInfo'] = '';
+          conditionalBlocks['block-spousePresent'] = 'false';
+        }
+        
+        const marriageDate = personal.marriageDate;
+        const marriagePlace = personal.marriagePlace;
+        if (personal.maritalStatus === 'marie' && marriageDate) {
+          const formattedDate = formatDate(marriageDate);
+          conditionalBlocks['block-marriageInfo'] = `Marié(e) le ${formattedDate}${marriagePlace ? ` à ${marriagePlace}` : ''}`;
+          conditionalBlocks['block-marriagePresent'] = 'true';
+        } else {
+          conditionalBlocks['block-marriageInfo'] = '';
+          conditionalBlocks['block-marriagePresent'] = 'false';
+        }
+        
+        return conditionalBlocks;
+      };
+      
+      // Créer un objet baseVariables avec toutes les variables de base
+      const baseVariables: Record<string, string> = {
+        matrimonialRegime: personal.matrimonialRegime || '',
+        birthDate: formatDate(personal.birthDate || ''),
+        city: personal.city || '',
+        spouseFullName: getFullName(personal.spouseFirstName || '', personal.spouseLastName || ''),
+        profession: personal.profession || '',
+        company: personal.company || '',
+        marriageDate: formatDate(personal.marriageDate || ''),
+        marriagePlace: personal.marriagePlace || ''
+      };
+      
+      // Appliquer les blocs conditionnels
+      const conditionalBlocks = generateConditionalBlocks(baseVariables, personal);
+      
+      // Ajouter tous les blocs conditionnels aux variables
+      Object.entries(conditionalBlocks).forEach(([key, value]) => {
+        variables[key] = value;
+      });
+      
+      // 🏠 GÉNÉRATION DES VARIABLES DE PATRIMOINE
+      console.log('🏠 Génération des variables de patrimoine...');
+      
+      // Charger les données de patrimoine depuis localStorage
+      let realEstate: any[] = [];
+      let financial: any[] = [];
+      let professional: any[] = [];
+      
+      try {
+        const realEstateData = localStorage.getItem('patrimoineImmobilierInfo');
+        const financialData = localStorage.getItem('patrimoineFinancierInfo');
+        const professionalData = localStorage.getItem('patrimoineProfessionnelInfo');
+        
+        if (realEstateData) realEstate = JSON.parse(realEstateData);
+        if (financialData) financial = JSON.parse(financialData);
+        if (professionalData) professional = JSON.parse(professionalData);
+        
+        console.log('💰 Données patrimoine chargées:', {
+          immobilier: realEstate.length,
+          financier: financial.length,
+          professionnel: professional.length
+        });
+      } catch (error) {
+        console.error('Erreur lors du chargement des données patrimoine:', error);
+      }
+      
+      // Variables de totaux
+      let totalImmo = 0, totalImmoTitle = 0, totalImmoCom = 0, totalImmoSpouseTitle = 0;
+      let totalFi = 0, totalFiTitle = 0, totalFiCom = 0, totalFiSpouseTitle = 0;
+      let totalPro = 0, totalProTitle = 0, totalProCom = 0, totalProSpouseTitle = 0;
+      
+      // 🏠 BIENS IMMOBILIERS (1-10)
+      for (let i = 1; i <= 10; i++) {
+        const property = realEstate[i - 1];
+        if (property && property.denomination) {
+          const denomination = property.denomination;
+          const netValue = property.netValue || 0;
+          
+          // Dénomination du bien
+          Object.assign(variables, generateVariableVariants(`bienImmobilier${i}`, denomination));
+          
+          // 🏠 NOUVELLES VARIABLES IMMOBILIÈRES DÉTAILLÉES
+          // Valeur nette
+          Object.assign(variables, generateVariableVariants(`valeurNette${i}`, netValue.toString()));
+          
+          // Surface
+          const surface = property.surface || 0;
+          Object.assign(variables, generateVariableVariants(`surface${i}`, surface.toString()));
+          
+          // Rendement (évolution sur 5 ans)
+          const rendement = property.evolutionPercentage || 0;
+          Object.assign(variables, generateVariableVariants(`rendement${i}`, rendement.toString()));
+          
+          // Emplacement (ville)
+          const emplacement = property.city || '';
+          Object.assign(variables, generateVariableVariants(`emplacement${i}`, emplacement));
+          
+          // DPE
+          const dpe = property.dpe || '';
+          Object.assign(variables, generateVariableVariants(`dpe${i}`, dpe));
+          
+          // GES
+          const ges = property.ges || '';
+          Object.assign(variables, generateVariableVariants(`ges${i}`, ges));
+          
+          // Répartition selon la détention
+          if (property.ownedBy === 'Vous') {
+            // Variables détention "Vous" avec toutes les variantes
+            Object.assign(variables, generateVariableVariants(`titleImmo${i}`, netValue.toString()));
+            // Variables autres détentions vides
+            variables[`comImmo${i}`] = '';
+            variables[`eu-comImmo${i}`] = '';
+            variables[`spouseTitleImmo${i}`] = '';
+            variables[`eu-spouseTitleImmo${i}`] = '';
+            totalImmoTitle += netValue;
+          } else if (property.ownedBy === 'Votre conjoint') {
+            // Variables détention "Votre conjoint" avec toutes les variantes
+            Object.assign(variables, generateVariableVariants(`spouseTitleImmo${i}`, netValue.toString()));
+            // Variables autres détentions vides
+            variables[`titleImmo${i}`] = '';
+            variables[`eu-titleImmo${i}`] = '';
+            variables[`comImmo${i}`] = '';
+            variables[`eu-comImmo${i}`] = '';
+            totalImmoSpouseTitle += netValue;
+          } else { // Commun
+            // Variables détention "Commun" avec toutes les variantes
+            Object.assign(variables, generateVariableVariants(`comImmo${i}`, netValue.toString()));
+            // Variables autres détentions vides
+            variables[`titleImmo${i}`] = '';
+            variables[`eu-titleImmo${i}`] = '';
+            variables[`spouseTitleImmo${i}`] = '';
+            variables[`eu-spouseTitleImmo${i}`] = '';
+            totalImmoCom += netValue;
+          }
+          totalImmo += netValue;
+        } else {
+          // Bien vide - toutes les variables vides
+          variables[`bienImmobilier${i}`] = '';
+          variables[`titleImmo${i}`] = '';
+          variables[`eu-titleImmo${i}`] = '';
+          variables[`comImmo${i}`] = '';
+          variables[`eu-comImmo${i}`] = '';
+          variables[`spouseTitleImmo${i}`] = '';
+          variables[`eu-spouseTitleImmo${i}`] = '';
+          
+          // Variables détaillées vides
+          variables[`valeurNette${i}`] = '';
+          variables[`eu-valeurNette${i}`] = '';
+          variables[`surface${i}`] = '';
+          variables[`rendement${i}`] = '';
+          variables[`pct-rendement${i}`] = '';
+          variables[`emplacement${i}`] = '';
+          variables[`dpe${i}`] = '';
+          variables[`ges${i}`] = '';
+        }
+      }
+      
+      // 💼 BIENS FINANCIERS (1-10)
+      for (let i = 1; i <= 10; i++) {
+        const asset = financial[i - 1];
+        if (asset && asset.denomination) {
+          const denomination = asset.denomination;
+          const realValue = asset.realValue || 0;
+          
+          // Dénomination du bien
+          Object.assign(variables, generateVariableVariants(`bienFinancier${i}`, denomination));
+          
+          // Répartition selon la détention
+          if (asset.ownedBy === 'Vous') {
+            Object.assign(variables, generateVariableVariants(`titleFi${i}`, realValue.toString()));
+            variables[`comFi${i}`] = '';
+            variables[`eu-comFi${i}`] = '';
+            variables[`spouseTitleFi${i}`] = '';
+            variables[`eu-spouseTitleFi${i}`] = '';
+            totalFiTitle += realValue;
+          } else if (asset.ownedBy === 'Votre conjoint') {
+            Object.assign(variables, generateVariableVariants(`spouseTitleFi${i}`, realValue.toString()));
+            variables[`titleFi${i}`] = '';
+            variables[`eu-titleFi${i}`] = '';
+            variables[`comFi${i}`] = '';
+            variables[`eu-comFi${i}`] = '';
+            totalFiSpouseTitle += realValue;
+          } else { // Commun
+            Object.assign(variables, generateVariableVariants(`comFi${i}`, realValue.toString()));
+            variables[`titleFi${i}`] = '';
+            variables[`eu-titleFi${i}`] = '';
+            variables[`spouseTitleFi${i}`] = '';
+            variables[`eu-spouseTitleFi${i}`] = '';
+            totalFiCom += realValue;
+          }
+          totalFi += realValue;
+        } else {
+          // Bien vide - toutes les variables vides
+          variables[`bienFinancier${i}`] = '';
+          variables[`titleFi${i}`] = '';
+          variables[`eu-titleFi${i}`] = '';
+          variables[`comFi${i}`] = '';
+          variables[`eu-comFi${i}`] = '';
+          variables[`spouseTitleFi${i}`] = '';
+          variables[`eu-spouseTitleFi${i}`] = '';
+        }
+      }
+      
+      // 🏢 BIENS PROFESSIONNELS (1-10)
+      for (let i = 1; i <= 10; i++) {
+        const asset = professional[i - 1];
+        if (asset && asset.companyName) {
+          const denomination = asset.companyName;
+          const netValue = asset.valuation || 0;
+          
+          // Dénomination du bien
+          Object.assign(variables, generateVariableVariants(`bienProfessionnel${i}`, denomination));
+          
+          // Répartition selon la détention (utilise 'ownership' pour les biens professionnels)
+          if (asset.ownership === 'Vous') {
+            Object.assign(variables, generateVariableVariants(`titlePro${i}`, netValue.toString()));
+            variables[`comPro${i}`] = '';
+            variables[`eu-comPro${i}`] = '';
+            variables[`spouseTitlePro${i}`] = '';
+            variables[`eu-spouseTitlePro${i}`] = '';
+            totalProTitle += netValue;
+          } else if (asset.ownership === 'Votre conjoint') {
+            Object.assign(variables, generateVariableVariants(`spouseTitlePro${i}`, netValue.toString()));
+            variables[`titlePro${i}`] = '';
+            variables[`eu-titlePro${i}`] = '';
+            variables[`comPro${i}`] = '';
+            variables[`eu-comPro${i}`] = '';
+            totalProSpouseTitle += netValue;
+          } else { // Commun
+            Object.assign(variables, generateVariableVariants(`comPro${i}`, netValue.toString()));
+            variables[`titlePro${i}`] = '';
+            variables[`eu-titlePro${i}`] = '';
+            variables[`spouseTitlePro${i}`] = '';
+            variables[`eu-spouseTitlePro${i}`] = '';
+            totalProCom += netValue;
+          }
+          totalPro += netValue;
+        } else {
+          // Bien vide - toutes les variables vides
+          variables[`bienProfessionnel${i}`] = '';
+          variables[`titlePro${i}`] = '';
+          variables[`eu-titlePro${i}`] = '';
+          variables[`comPro${i}`] = '';
+          variables[`eu-comPro${i}`] = '';
+          variables[`spouseTitlePro${i}`] = '';
+          variables[`eu-spouseTitlePro${i}`] = '';
+        }
+      }
+      
+      // 📊 TOTAUX ET POURCENTAGES
+      const totalPatrimoine = totalImmo + totalFi + totalPro;
+      const totalTitle = totalImmoTitle + totalFiTitle + totalProTitle;
+      const totalCom = totalImmoCom + totalFiCom + totalProCom;
+      const totalSpouseTitle = totalImmoSpouseTitle + totalFiSpouseTitle + totalProSpouseTitle;
+      
+      // Variables de totaux par catégorie avec toutes les variantes
+      Object.assign(variables, generateVariableVariants('totalImmo', totalImmo.toString()));
+      Object.assign(variables, generateVariableVariants('totalFi', totalFi.toString()));
+      Object.assign(variables, generateVariableVariants('totalPro', totalPro.toString()));
+      
+      // Variables de totaux par détention avec toutes les variantes
+      Object.assign(variables, generateVariableVariants('totalTitle', totalTitle.toString()));
+      Object.assign(variables, generateVariableVariants('totalCom', totalCom.toString()));
+      Object.assign(variables, generateVariableVariants('totalSpouseTitle', totalSpouseTitle.toString()));
+      Object.assign(variables, generateVariableVariants('totalPat', totalPatrimoine.toString()));
+      
+      // Pourcentages par catégorie (si patrimoine total > 0)
+      if (totalPatrimoine > 0) {
+        const pctImmo = Math.round((totalImmo / totalPatrimoine) * 100);
+        const pctFi = Math.round((totalFi / totalPatrimoine) * 100);
+        const pctPro = Math.round((totalPro / totalPatrimoine) * 100);
+        
+        Object.assign(variables, generateVariableVariants('pctImmo', pctImmo.toString()));
+        Object.assign(variables, generateVariableVariants('pctFi', pctFi.toString()));
+        Object.assign(variables, generateVariableVariants('pctPro', pctPro.toString()));
+        
+        // Pourcentages par détention
+        const pctTitle = Math.round((totalTitle / totalPatrimoine) * 100);
+        const pctCom = Math.round((totalCom / totalPatrimoine) * 100);
+        const pctSpouseTitle = Math.round((totalSpouseTitle / totalPatrimoine) * 100);
+        
+        Object.assign(variables, generateVariableVariants('pctTitle', pctTitle.toString()));
+        Object.assign(variables, generateVariableVariants('pctCom', pctCom.toString()));
+        Object.assign(variables, generateVariableVariants('pctSpouseTitle', pctSpouseTitle.toString()));
+      } else {
+        // Patrimoine vide - tous les pourcentages à 0
+        ['pctImmo', 'pctFi', 'pctPro', 'pctTitle', 'pctCom', 'pctSpouseTitle'].forEach(key => {
+          variables[key] = '0';
+          variables[`pct-${key}`] = '0 %';
+          variables[`%-${key}`] = '0%';
+        });
+      }
+      
+      console.log('📊 Variables patrimoine générées:', {
+        totalImmo,
+        totalFi,
+        totalPro,
+        totalPatrimoine,
+        totalTitle,
+        totalCom,
+        totalSpouseTitle
+      });
+      
+      // 💰 GÉNÉRATION DES VARIABLES REVENUS ET CHARGES
+      console.log('💰 Génération des variables revenus et charges...');
+      
+      // Charger les données de revenus et charges depuis localStorage
+      let revenus: any[] = [];
+      let charges: any[] = [];
+      
+      try {
+        const revenusData = localStorage.getItem('budgetRevenusInfo');
+        const chargesData = localStorage.getItem('budgetChargesInfo');
+        
+        if (revenusData) revenus = JSON.parse(revenusData);
+        if (chargesData) charges = JSON.parse(chargesData);
+        
+        console.log('💰 Données budget chargées:', {
+          revenus: revenus.length,
+          charges: charges.length
+        });
+      } catch (error) {
+        console.error('Erreur lors du chargement des données budget:', error);
+      }
+      
+      // Calculer les totaux
+      const totalRevenus = revenus.reduce((sum, item) => sum + (item.amount || 0), 0);
+      const totalCharges = charges.reduce((sum, item) => sum + (item.amount || 0), 0);
+      
+      // 💰 VARIABLES REVENUS (1-10)
+      for (let i = 1; i <= 10; i++) {
+        const revenu = revenus[i - 1];
+        if (revenu && revenu.denomination) {
+          // Intitulé avec toutes les variantes
+          Object.assign(variables, generateVariableVariants(`intitule_revenu${i}`, revenu.denomination));
+          // Montant avec toutes les variantes
+          Object.assign(variables, generateVariableVariants(`montant_revenu${i}`, (revenu.amount || 0).toString()));
+        } else {
+          // Ligne vide
+          variables[`intitule_revenu${i}`] = '';
+          variables[`montant_revenu${i}`] = '';
+          variables[`eu-montant_revenu${i}`] = '';
+        }
+      }
+      
+      // 💸 VARIABLES CHARGES (1-10)
+      for (let i = 1; i <= 10; i++) {
+        const charge = charges[i - 1];
+        if (charge && charge.denomination) {
+          // Intitulé avec toutes les variantes
+          Object.assign(variables, generateVariableVariants(`intitule_charge${i}`, charge.denomination));
+          // Montant avec toutes les variantes
+          Object.assign(variables, generateVariableVariants(`montant_charge${i}`, (charge.amount || 0).toString()));
+        } else {
+          // Ligne vide
+          variables[`intitule_charge${i}`] = '';
+          variables[`montant_charge${i}`] = '';
+          variables[`eu-montant_charge${i}`] = '';
+        }
+      }
+      
+      // 📊 TOTAUX REVENUS ET CHARGES
+      Object.assign(variables, generateVariableVariants('montant_total__revenus', totalRevenus.toString()));
+      Object.assign(variables, generateVariableVariants('montant_total__charges', totalCharges.toString()));
+      
+      console.log('💰 Variables revenus et charges générées:', {
+        totalRevenus,
+        totalCharges,
+        'revenus source': revenus.length,
+        'charges source': charges.length
+      });
+      
+      // 🎯 GÉNÉRATION DES NOUVELLES VARIABLES DEMANDÉES
+      console.log('🎯 Génération des nouvelles variables calculées...');
+      
+      // Chargement des données fiscales depuis localStorage
+      let fiscalData: any = {};
+      try {
+        const fiscalDataString = localStorage.getItem('fiscaliteIRInfo');
+        if (fiscalDataString) {
+          fiscalData = JSON.parse(fiscalDataString);
+          console.log('📊 Données fiscales chargées:', fiscalData);
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des données fiscales:', error);
+      }
+      
+      // 💰 1. CAPACITÉ D'ÉPARGNE ANNUELLE ET MENSUELLE
+      const capaciteEpargneAnnuelle = totalRevenus - totalCharges;
+      const capaciteEpargneMensuelle = capaciteEpargneAnnuelle / 12;
+      
+      Object.assign(variables, generateVariableVariants('capacite_epargneAnnuelle', capaciteEpargneAnnuelle.toString()));
+      Object.assign(variables, generateVariableVariants('capacite_epargneMensuelle', capaciteEpargneMensuelle.toString()));
+      
+      // 💳 2. TAUX D'ENDETTEMENT
+      // Pour le calcul du taux d'endettement, nous utilisons les charges fixes (crédits et charges récurrentes)
+      // divisées par les revenus nets. Pour simplifier, nous utilisons le total des charges / total des revenus
+      const tauxEndettement = totalRevenus > 0 ? (totalCharges / totalRevenus) : 0;
+      
+      Object.assign(variables, generateVariableVariants('taux_endettement', tauxEndettement.toString()));
+      
+      // 🏛️ 3. DONNÉES FISCALES (IR, TMI, PRESSION FISCALE)
+      // L'impôt sur le revenu est calculé et stocké comme impotApresAvantages dans les données fiscales
+      // Si négatif, c'est un remboursement, donc on considère 0 pour l'éventuel calcul de ratios
+      const impotRevenu = Math.max(0, fiscalData.impotApresAvantages || 0);
+      const trancheMarginal = fiscalData.trancheMarginaleDimposition || 0;
+      const tauxMoyenImposition = fiscalData.tauxMoyenDimposition || 0;
+      
+      Object.assign(variables, generateVariableVariants('ir', impotRevenu.toString()));
+      Object.assign(variables, generateVariableVariants('tmi', trancheMarginal.toString()));
+      Object.assign(variables, generateVariableVariants('pressionFiscaleMoyenne', tauxMoyenImposition.toString()));
+      
+      console.log('🎯 Nouvelles variables calculées:', {
+        capaciteEpargneAnnuelle: capaciteEpargneAnnuelle.toLocaleString(),
+        capaciteEpargneMensuelle: capaciteEpargneMensuelle.toLocaleString(),
+        tauxEndettement: (tauxEndettement * 100).toFixed(2) + '%',
+        impotRevenu: impotRevenu.toLocaleString(),
+        trancheMarginal: trancheMarginal + '%',
+        tauxMoyenImposition: tauxMoyenImposition + '%'
+      });
+      
+      // 🎯 GÉNÉRATION DES VARIABLES D'OBJECTIFS
+      console.log('🎯 Génération des variables d\'objectifs...');
+      
+      // Chargement des données d'objectifs depuis localStorage
+      let objectifsData: any = {};
+      try {
+        const objectifsDataString = localStorage.getItem('identityObjectifsInfo');
+        if (objectifsDataString) {
+          objectifsData = JSON.parse(objectifsDataString);
+          console.log('🎯 Données d\'objectifs chargées:', objectifsData);
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des données d\'objectifs:', error);
+      }
+      
+      // Classification des objectifs selon leur horizon temporel
+      const objectifsCourtTerme: string[] = [];
+      const objectifsMoyenTerme: string[] = [];
+      const objectifsLongTerme: string[] = [];
+      
+      if (objectifsData.objectives) {
+        Object.entries(objectifsData.objectives).forEach(([objectif, data]: [string, any]) => {
+          if (data.selected && data.horizon) {
+            const horizon = parseInt(data.horizon);
+            
+            if (horizon >= 1 && horizon <= 5) {
+              objectifsCourtTerme.push(objectif);
+            } else if (horizon >= 6 && horizon <= 10) {
+              objectifsMoyenTerme.push(objectif);
+            } else if (horizon >= 11) {
+              objectifsLongTerme.push(objectif);
+            }
+          }
+        });
+      }
+      
+      // 🔷 Génération des variables COURT TERME (0-5 ans)
+      for (let i = 1; i <= 10; i++) {
+        const objectif = objectifsCourtTerme[i - 1];
+        if (objectif) {
+          Object.assign(variables, generateVariableVariants(`objectifCourtTerme${i}`, `- ${objectif}`));
+        } else {
+          variables[`objectifCourtTerme${i}`] = '';
+        }
+      }
+      
+      // 🔶 Génération des variables MOYEN TERME (6-10 ans)
+      for (let i = 1; i <= 10; i++) {
+        const objectif = objectifsMoyenTerme[i - 1];
+        if (objectif) {
+          Object.assign(variables, generateVariableVariants(`objectifMoyenTerme${i}`, `- ${objectif}`));
+        } else {
+          variables[`objectifMoyenTerme${i}`] = '';
+        }
+      }
+      
+      // 🔵 Génération des variables LONG TERME (11+ ans)
+      for (let i = 1; i <= 10; i++) {
+        const objectif = objectifsLongTerme[i - 1];
+        if (objectif) {
+          Object.assign(variables, generateVariableVariants(`objectifLongTerme${i}`, `- ${objectif}`));
+        } else {
+          variables[`objectifLongTerme${i}`] = '';
+        }
+      }
+      
+      console.log('🎯 Objectifs classés par terme:', {
+        courtTerme: objectifsCourtTerme.length,
+        moyenTerme: objectifsMoyenTerme.length,
+        longTerme: objectifsLongTerme.length,
+        exemples: {
+          court: objectifsCourtTerme.slice(0, 2),
+          moyen: objectifsMoyenTerme.slice(0, 2),
+          long: objectifsLongTerme.slice(0, 2)
+        }
+      });
+      
+      // 💰 GÉNÉRATION DES VARIABLES DE BIENS FINANCIERS PAR HORIZON TEMPOREL
+      console.log('💰 Tri des biens financiers par horizon temporel...');
+      
+      // Fonction pour déterminer l'horizon temporel basé sur la performance et le type d'actif
+      const getHorizonTemporel = (asset: any): 'CT' | 'MT' | 'LT' => {
+        // Logique de classification par horizon temporel
+        // Court terme (0-2 ans): Livrets, comptes courants, obligations courtes
+        // Moyen terme (3-5 ans): Assurance-vie, PEA, obligations moyennes
+        // Long terme (6+ ans): Actions, immobilier financier, PEA ancien
+        
+        const type = asset.type ? asset.type.toLowerCase() : '';
+        const performance = asset.performance || 0;
+        
+        // Classification par type d'actif
+        if (type.includes('livret') || type.includes('compte courant') || type.includes('liquidité')) {
+          return 'CT'; // Court terme
+        } else if (type.includes('obligation') && performance < 5) {
+          return 'CT'; // Obligations courtes
+        } else if (type.includes('assurance-vie') || type.includes('pea') || type.includes('obligation')) {
+          return 'MT'; // Moyen terme
+        } else if (type.includes('action') || type.includes('scpi') || type.includes('fcp') || performance > 7) {
+          return 'LT'; // Long terme
+        }
+        
+        // Classification par performance si le type n'est pas déterminant
+        if (performance <= 3) {
+          return 'CT'; // Faible performance = court terme
+        } else if (performance <= 6) {
+          return 'MT'; // Performance modérée = moyen terme
+        } else {
+          return 'LT'; // Forte performance = long terme
+        }
+      };
+      
+      // Trier les biens financiers par horizon temporel
+      const biensFinanciersCT: any[] = [];
+      const biensFinanciersMT: any[] = [];
+      const biensFinanciersLT: any[] = [];
+      
+      financial.forEach((asset: any) => {
+        if (asset && asset.denomination) {
+          const horizon = getHorizonTemporel(asset);
+          
+          switch (horizon) {
+            case 'CT':
+              biensFinanciersCT.push(asset);
+              break;
+            case 'MT':
+              biensFinanciersMT.push(asset);
+              break;
+            case 'LT':
+              biensFinanciersLT.push(asset);
+              break;
+          }
+        }
+      });
+      
+      // Générer les variables pour COURT TERME (0-2 ans)
+      for (let i = 1; i <= 10; i++) {
+        const asset = biensFinanciersCT[i - 1];
+        if (asset) {
+          Object.assign(variables, generateVariableVariants(`bienFinancierCT${i}`, asset.denomination));
+          Object.assign(variables, generateVariableVariants(`CT${i}`, asset.performance ? `${asset.performance.toFixed(1)}%` : '0%'));
+        } else {
+          variables[`bienFinancierCT${i}`] = '';
+          variables[`CT${i}`] = '';
+        }
+      }
+      
+      // Générer les variables pour MOYEN TERME (3-5 ans)
+      for (let i = 1; i <= 10; i++) {
+        const asset = biensFinanciersMT[i - 1];
+        if (asset) {
+          Object.assign(variables, generateVariableVariants(`bienFinancierMT${i}`, asset.denomination));
+          Object.assign(variables, generateVariableVariants(`MT${i}`, asset.performance ? `${asset.performance.toFixed(1)}%` : '0%'));
+        } else {
+          variables[`bienFinancierMT${i}`] = '';
+          variables[`MT${i}`] = '';
+        }
+      }
+      
+      // Générer les variables pour LONG TERME (6+ ans)
+      for (let i = 1; i <= 10; i++) {
+        const asset = biensFinanciersLT[i - 1];
+        if (asset) {
+          Object.assign(variables, generateVariableVariants(`bienFinancierLT${i}`, asset.denomination));
+          Object.assign(variables, generateVariableVariants(`LT${i}`, asset.performance ? `${asset.performance.toFixed(1)}%` : '0%'));
+        } else {
+          variables[`bienFinancierLT${i}`] = '';
+          variables[`LT${i}`] = '';
+        }
+      }
+      
+      console.log('💰 Biens financiers classés par horizon:', {
+        courtTerme: biensFinanciersCT.length,
+        moyenTerme: biensFinanciersMT.length,
+        longTerme: biensFinanciersLT.length,
+        exemples: {
+          CT: biensFinanciersCT.slice(0, 2).map(a => `${a.denomination} (${a.performance}%)`),
+          MT: biensFinanciersMT.slice(0, 2).map(a => `${a.denomination} (${a.performance}%)`),
+          LT: biensFinanciersLT.slice(0, 2).map(a => `${a.denomination} (${a.performance}%)`)
+        }
+      });
+      
+      // 🤖 GÉNÉRATION DES ANALYSES LLM
+      console.log('🤖 Génération des analyses LLM...');
+      
+      try {
+        // Préparer toutes les données localStorage pour le contexte
+        const localStorageData = {
+          identityPersonalInfo: personal,
+          budgetRevenusInfo: revenus,
+          budgetChargesInfo: charges,
+          patrimoineImmobilierInfo: realEstate,
+          patrimoineFinancierInfo: financial,
+          patrimoineProfessionnelInfo: professional,
+          identityObjectifsInfo: objectifsData,
+          fiscaliteIRInfo: fiscalData
+        };
+        
+        // Appel à l'API LLM pour toutes les analyses
+        const llmResponse = await fetch('/api/llm-analysis', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ localStorageData }),
+        });
+        
+        if (llmResponse.ok) {
+          const { analyses } = await llmResponse.json();
+          
+          // Ajouter les analyses aux variables
+          Object.entries(analyses).forEach(([key, value]) => {
+            Object.assign(variables, generateVariableVariants(key, value as string));
+          });
+          
+          console.log('🤖 Analyses LLM générées:', Object.keys(analyses));
+        } else {
+          console.error('Erreur lors de la génération des analyses LLM:', llmResponse.status);
+          // Ajouter des variables vides pour éviter les erreurs dans le template
+          const llmVariables = ['analyseFluxForcesIA', 'analyseFluxFaiblessesIA', 'poidsFluxIA', 'origineFluxIA', 'perenniteFluxIA', 'analyseTempsLongIA', 'analyseTempsCourtIA', 'profilRisqueIA', 'conformiteIA', 'caracteristiquesCTIA', 'caracteristiquesMTIA', 'caracteristiquesLTIA', 'ameliorationsCTIA', 'ameliorationsMTIA', 'ameliorationsLTIA', 'allocationActifIA', 'analyseStocksFinanciersForcesIA', 'analyseStocksFinanciersFaiblessesIA', 'analyseStocksFinanciersRisquesIA'];
+          llmVariables.forEach(varName => {
+            variables[varName] = 'Analyse non disponible';
+          });
+        }
+      } catch (error) {
+        console.error('Erreur lors de l\'appel LLM:', error);
+        // Ajouter des variables vides pour éviter les erreurs dans le template
+        const llmVariables = ['analyseFluxForcesIA', 'analyseFluxFaiblessesIA', 'poidsFluxIA', 'origineFluxIA', 'perenniteFluxIA', 'analyseTempsLongIA', 'analyseTempsCourtIA', 'profilRisqueIA', 'conformiteIA', 'caracteristiquesCTIA', 'caracteristiquesMTIA', 'caracteristiquesLTIA', 'ameliorationsCTIA', 'ameliorationsMTIA', 'ameliorationsLTIA', 'allocationActifIA', 'analyseStocksFinanciersForcesIA', 'analyseStocksFinanciersFaiblessesIA', 'analyseStocksFinanciersRisquesIA'];
+        llmVariables.forEach(varName => {
+          variables[varName] = 'Analyse non disponible';
+        });
+      }
+      
+      console.log(`📊 ${Object.keys(variables).length} variables générées en ${Date.now() - startTime}ms`);
+      
+      // Debug: afficher quelques variables importantes
+      console.log('🔍 Variables de test:');
+      console.log('- title:', variables.title);
+      console.log('- M-title:', variables['M-title']);
+      console.log('- lastName:', variables.lastName);
+      console.log('- MM-lastName:', variables['MM-lastName']);
+      console.log('- profession:', variables.profession);
+      console.log('- mm-profession:', variables['mm-profession']);
+      console.log('- eu-totalImmo:', variables['eu-totalImmo']);
+      console.log('- pct-totalImmo:', variables['pct-totalImmo']);
+      console.log('- eu-titleImmo1:', variables['eu-titleImmo1']);
+      console.log('- eu-comImmo1:', variables['eu-comImmo1']);
+      console.log('- eu-spouseTitleImmo1:', variables['eu-spouseTitleImmo1']);
+      console.log('- eu-montant_total__revenus:', variables['eu-montant_total__revenus']);
+      console.log('- eu-montant_total__charges:', variables['eu-montant_total__charges']);
+      console.log('- intitule_revenu1:', variables['intitule_revenu1']);
+      console.log('- eu-montant_revenu1:', variables['eu-montant_revenu1']);
+      console.log('- intitule_charge1:', variables['intitule_charge1']);
+      console.log('- eu-montant_charge1:', variables['eu-montant_charge1']);
+      // Nouvelles variables
+      console.log('- eu-capacite_epargneAnnuelle:', variables['eu-capacite_epargneAnnuelle']);
+      console.log('- eu-capacite_epargneMensuelle:', variables['eu-capacite_epargneMensuelle']);
+      console.log('- pct-taux_endettement:', variables['pct-taux_endettement']);
+      console.log('- eu-ir:', variables['eu-ir']);
+      console.log('- tmi:', variables['tmi']);
+      console.log('- pct-pressionFiscaleMoyenne:', variables['pct-pressionFiscaleMoyenne']);
+      // Variables d'objectifs
+      console.log('- objectifCourtTerme1:', variables['objectifCourtTerme1']);
+      console.log('- objectifMoyenTerme1:', variables['objectifMoyenTerme1']);
+      console.log('- objectifLongTerme1:', variables['objectifLongTerme1']);
+      // Variables biens financiers par horizon temporel
+      console.log('- bienFinancierCT1:', variables['bienFinancierCT1']);
+      console.log('- CT1:', variables['CT1']);
+      console.log('- bienFinancierMT1:', variables['bienFinancierMT1']);
+      console.log('- MT1:', variables['MT1']);
+      console.log('- bienFinancierLT1:', variables['bienFinancierLT1']);
+      console.log('- LT1:', variables['LT1']);
+      // Variables immobilières détaillées
+      console.log('- valeurNette1:', variables['valeurNette1']);
+      console.log('- eu-valeurNette1:', variables['eu-valeurNette1']);
+      console.log('- surface1:', variables['surface1']);
+      console.log('- rendement1:', variables['rendement1']);
+      console.log('- pct-rendement1:', variables['pct-rendement1']);
+      console.log('- emplacement1:', variables['emplacement1']);
+      console.log('- dpe1:', variables['dpe1']);
+      console.log('- ges1:', variables['ges1']);
+      // Variables d'analyses LLM
+      console.log('- analyseFluxForcesIA:', variables['analyseFluxForcesIA'] ? variables['analyseFluxForcesIA'].substring(0, 50) + '...' : 'non disponible');
+      console.log('- analyseFluxFaiblessesIA:', variables['analyseFluxFaiblessesIA'] ? variables['analyseFluxFaiblessesIA'].substring(0, 50) + '...' : 'non disponible');
+      console.log('- analyseStocksFinanciersForcesIA:', variables['analyseStocksFinanciersForcesIA'] ? variables['analyseStocksFinanciersForcesIA'].substring(0, 50) + '...' : 'non disponible');
+      
+      // Appel à l'API rapide
+      const response = await fetch('/api/export-pdf-fast', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(variables),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+      
+      // Télécharger le PDF
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `analyse-patrimoniale-rapide-${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      const totalTime = Date.now() - startTime;
+      console.log(`🎉 Export PDF rapide terminé en ${totalTime}ms (${(totalTime/1000).toFixed(1)}s)`);
+      
+    } catch (error) {
+      console.error('❌ Erreur export PDF rapide:', error);
+      // On peut ajouter un toast ou une notification d'erreur ici
+    } finally {
+      setIsExportingFast(false);
     }
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray], { type: 'application/pdf' });
-    
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = pdfData.filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    
-    // Fermer le dialog après téléchargement
-    setExportDialogOpen(false);
-    setPdfData(null);
   };
 
   // Fonction pour changer la priorité d'une préconisation
@@ -1114,97 +2409,106 @@ export default function RecommendationsPage() {
           </Breadcrumb>
         </div>
         <div className="ml-auto px-4 flex items-center gap-2">
-          {/* Boutons de test pour développement */}
+          
+          {/* Bouton Export PDF rapide */}
           <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => {
-              loadTestDataToLocalStorage();
-              window.location.reload();
-            }}
-            className="text-xs"
+            variant="default" 
+            onClick={exportToPDFRapide}
+            disabled={isExportingFast}
+            className="bg-green-600 hover:bg-green-700"
           >
-            🧪 Test Data
+            {isExportingFast ? (
+              <>
+                <Spinner className="mr-2 h-4 w-4" />
+                Export...
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4 mr-2" />
+                Export PDF rapide
+              </>
+            )}
           </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={checkCurrentData}
-            className="text-xs"
-          >
-            📊 Check Data
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => {
-              clearTestData();
-              window.location.reload();
-            }}
-            className="text-xs"
-          >
-            🗑️ Clear
-          </Button>
-          <Separator orientation="vertical" className="h-6" />
-          <Button variant="outline" onClick={exportToPDFExternal}>
-            <Download className="w-4 h-4 mr-2" />
-            Export PDF
-          </Button>
+
+          <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Download className="w-4 h-4 mr-2" />
+                Export PDF (Google Docs)
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Export PDF</DialogTitle>
+                <DialogDescription>
+                  Génération de votre étude patrimoniale personnalisée
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4">
+                {/* Liste des préconisations sélectionnées */}
+                <div>
+                  <h4 className="font-medium mb-3 text-sm">Préconisations incluses ({selectedPreconisations.length})</h4>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {preconisations
+                      .filter(preco => selectedPreconisations.includes(preco.id))
+                      .sort((a, b) => {
+                        const priorities = { "Haute": 3, "Moyenne": 2, "Basse": 1 };
+                        const aPriority = customPriorities[a.id] || a.priority;
+                        const bPriority = customPriorities[b.id] || b.priority;
+                        return priorities[bPriority] - priorities[aPriority];
+                      })
+                      .map(preco => {
+                        const priority = customPriorities[preco.id] || preco.priority;
+                        return (
+                          <div key={preco.id} className="flex items-center gap-2 text-sm">
+                            <div className={`w-2 h-2 rounded-full ${getPriorityDotColor(priority)}`} />
+                            <span className="truncate">{preco.title}</span>
+                          </div>
+                        );
+                      })
+                    }
+                  </div>
+                </div>
+                
+                {/* Progress bar */}
+                {isExporting && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Génération en cours...</span>
+                      <span>{exportProgress}%</span>
+                    </div>
+                    <Progress value={exportProgress} className="h-2" />
+                  </div>
+                )}
+                
+                {/* Boutons d'action */}
+                <div className="flex gap-2 pt-2">
+                  {!isExporting && (
+                    <>
+                      <Button onClick={() => setExportDialogOpen(false)} variant="outline" className="flex-1">
+                        Annuler
+                      </Button>
+                      <Button onClick={exportToPDF} className="flex-1">
+                        Générer PDF
+                      </Button>
+                    </>
+                  )}
+                  {isExporting && (
+                    <Button disabled className="w-full">
+                      <Spinner className="mr-2 h-4 w-4" />
+                      Génération en cours...
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
           <ThemeToggle />
         </div>
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        {/* Panier de préconisations sélectionnées - sticky */}
-        <div className="sticky top-0 z-10 pt-2 pb-1 bg-background/80 dark:bg-background/90 backdrop-blur-sm">
-          <Card className="border-2 border-blue-500/80 dark:border-blue-700/80 shadow-md bg-background/80 dark:bg-background/90">
-            <CardHeader className="py-2 pb-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <ShoppingCart className="h-5 w-5 text-blue-500" />
-                  <h3 className="text-base font-medium">Préconisations sélectionnées {selectedPreconisations.length > 0 && `(${selectedPreconisations.length})`}</h3>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="py-2">
-              <div className="min-h-[60px] max-h-[240px] overflow-y-auto pr-1">
-                {selectedPreconisations.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {preconisations
-                      .filter(preco => selectedPreconisations.includes(preco.id))
-                      // Tri par priorité : Haute > Moyenne > Basse
-                      .sort((a, b) => {
-                        const priorityOrder = { "Haute": 1, "Moyenne": 2, "Basse": 3 };
-                        const priorityA = customPriorities[a.id] || a.priority;
-                        const priorityB = customPriorities[b.id] || b.priority;
-                        return priorityOrder[priorityA] - priorityOrder[priorityB];
-                      })
-                      .map(preco => (
-                        <div key={`selected-${preco.id}`} className="group relative inline-flex border rounded-lg bg-card shadow-sm hover:shadow transition-shadow">
-                          <button
-                            onClick={() => toggleSelectedPreconisation(preco.id)}
-                            className="absolute top-1 right-1 p-1 rounded-full bg-white/80 dark:bg-gray-800/80 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 dark:hover:bg-red-900 z-10"
-                            aria-label="Retirer la préconisation"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                          <div className="p-2 pr-6 flex items-center justify-center w-full h-full" data-component-name="RecommendationsPage">
-                            <span className="font-medium text-sm">{preco.title}</span>
-                          </div>
-                        </div>
-                      ))
-                    }
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-center">
-                    <ShoppingCart className="h-8 w-8 text-muted-foreground mb-2" />
-                    <h3 className="text-sm font-medium">Aucune préconisation sélectionnée</h3>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
 
         <Card>
           <CardHeader>
@@ -1355,100 +2659,7 @@ export default function RecommendationsPage() {
           </div>
         )}
         
-        {/* Dialog d'export PDF */}
-        <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>
-                {isExporting 
-                  ? "Export de l'étude patrimoniale" 
-                  : pdfData 
-                    ? "Téléchargement réussi" 
-                    : exportError 
-                      ? "Erreur d'exportation" 
-                      : "Export de l'étude patrimoniale"
-                }
-              </DialogTitle>
-              <DialogDescription>
-                {isExporting 
-                  ? "Génération du document PDF personnalisé avec vos préconisations sélectionnées" 
-                  : pdfData 
-                    ? "Votre document a bien été téléchargé et se trouve dans votre dossier Téléchargements" 
-                    : exportError 
-                      ? "Une erreur est survenue lors de l'exportation" 
-                      : "Génération du document PDF personnalisé avec vos préconisations sélectionnées"
-                }
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              {isExporting && (
-                <div className="flex flex-col items-center justify-center p-8">
-                  <Spinner size="lg" className="mb-4" />
-                  <h3 className="text-lg font-medium mb-2">Génération en cours...</h3>
-                  <p className="text-center text-muted-foreground">
-                    Traitement des données et création du document PDF personnalisé
-                  </p>
-                </div>
-              )}
-              
-              {exportError && (
-                <div className="flex flex-col items-center justify-center p-8">
-                  <div className="h-12 w-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-4">
-                    <X className="h-6 w-6" />
-                  </div>
-                  <h3 className="text-lg font-medium mb-2 text-red-600">Erreur lors de l'export</h3>
-                  <p className="text-center text-muted-foreground mb-4">{exportError}</p>
-                  <Button onClick={() => setExportDialogOpen(false)} variant="outline">
-                    Fermer
-                  </Button>
-                </div>
-              )}
-              
-              {pdfData && (
-                <div className="space-y-4">
-                  <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-green-300 bg-green-50 dark:bg-green-950 rounded-lg">
-                    <div className="h-12 w-12 rounded-full bg-green-100 text-green-600 flex items-center justify-center mb-4">
-                      <Check className="h-6 w-6" />
-                    </div>
-                    <h3 className="text-lg font-medium mb-2 text-green-600">Document généré avec succès</h3>
-                    <p className="text-center text-muted-foreground mb-4">
-                      L'étude patrimoniale a été téléchargée et se trouve dans vos téléchargements
-                    </p>
-                  </div>
-                  
-                  {/* Résumé des préconisations incluses */}
-                  <div className="bg-muted p-4 rounded-lg">
-                    <h4 className="font-medium mb-3">Préconisations incluses dans le document :</h4>
-                    <div className="space-y-2">
-                      {preconisations
-                        .filter(preco => selectedPreconisations.includes(preco.id))
-                        .map(preco => (
-                          <div key={preco.id} className="flex items-center justify-between text-sm">
-                            <span>{preco.title}</span>
-                            <Badge className={`text-xs ${getPriorityColor(customPriorities[preco.id] || preco.priority)}`}>
-                              {customPriorities[preco.id] || preco.priority}
-                            </Badge>
-                          </div>
-                        ))
-                      }
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-end space-x-2">
-                    <Button onClick={() => setExportDialogOpen(false)} variant="outline">
-                      Fermer
-                    </Button>
-                    <Button onClick={downloadPDF}>
-                      <Download className="w-4 h-4 mr-2" />
-                      Télécharger le PDF
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
+
         
         <Card className="mt-6">
           <CardHeader>

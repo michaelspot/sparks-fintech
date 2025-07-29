@@ -31,11 +31,14 @@
 {{spouseAge}}                → Âge du conjoint (ex: "41 ans")
 {{spouseBirthDate}}          → Date de naissance du conjoint (format jj/mm/aaaa)
 {{spouseBirthPostalCode}}    → Code postal de naissance du conjoint
+{{birthCity}}                → Ville de naissance du client
 {{spouseBirthCity}}          → Ville de naissance du conjoint
 {{spouseCity}}               → Ville de résidence du conjoint
 {{spouseCountry}}            → Pays du conjoint
 {{spouseNationality}}        → Nationalité du conjoint
+{{legalCapacity}}            → Capacité juridique du client
 {{spouseLegalCapacity}}      → Capacité juridique du conjoint
+{{mifClassification}}        → Classification MIF du client
 {{spouseRetirementAge}}      → Âge de départ à la retraite du conjoint
 ```
 
@@ -62,61 +65,65 @@
 
 ## 💰 Variables de Patrimoine
 
-### 🏠 **Patrimoine Immobilier (1 à 10 biens)**
-```
-{{bienImmobilier1}}          → Dénomination du bien immobilier 1
-{{titleImmo1}}               → Valeur du bien 1 (détention "Vous")
-{{comImmo1}}                 → Valeur du bien 1 (détention "Commun")
-{{spouseTitleImmo1}}         → Valeur du bien 1 (détention "Votre conjoint")
+### 📊 Exemples de Tableaux pour Google Docs
 
-{{bienImmobilier2}}          → Dénomination du bien immobilier 2
-{{titleImmo2}}               → Valeur du bien 2 (détention "Vous")
-{{comImmo2}}                 → Valeur du bien 2 (détention "Commun")
-{{spouseTitleImmo2}}         → Valeur du bien 2 (détention "Votre conjoint")
+Cette section montre comment utiliser les variables de patrimoine, revenus et charges dans des tableaux directement copiables dans Google Docs. Le système récupère les données brutes (ex: `lastName`, `titleImmo1`) depuis votre application et les préfixes (ex: `eu-`, `M-`) appliquent un formatage directement dans le document.
 
-... (jusqu'à bienImmobilier10, titleImmo10, comImmo10, spouseTitleImmo10)
-```
+### **Tableau Patrimoine**
 
-### 💼 **Patrimoine Financier (1 à 10 biens)**
-```
-{{bienFinancier1}}           → Dénomination du bien financier 1
-{{titleFi1}}                 → Valeur du bien 1 (détention "Vous")
-{{comFi1}}                   → Valeur du bien 1 (détention "Commun")
-{{spouseTitleFi1}}           → Valeur du bien 1 (détention "Votre conjoint")
+|  |  |  |  |  |  | {{title}} |  | Commun |  | {{spouseTitle}} |  |
+| ----- | ----- | ----- | ----- | ----- | ----- | ----- | :---- | ----- | :---- | :---: | ----- |
+| **Biens immobiliers ({{eu-totalImmo}} net \- {{pct-totalImmo}})** |  |  |  |  |  |  |  |  |  |  |  |
+| {{bienImmobilier1}} |  |  |  |  |  | {{eu-titleImmo1}} |  | {{eu-comImmo1}} |  | {{eu-spouseTitleImmo1}} |  |
+| {{bienImmobilier2}} |  |  |  |  |  | {{eu-titleImmo2}} |  | {{eu-comImmo2}} |  | {{eu-spouseTitleImmo2}} |  |
+| {{bienImmobilier3}} |  |  |  |  |  | {{eu-titleImmo3}} |  | {{eu-comImmo3}} |  | {{eu-spouseTitleImmo3}} |  |
+| {{bienImmobilier4}} |  |  |  |  |  | {{eu-titleImmo4}} |  | {{eu-comImmo4}} |  | {{eu-spouseTitleImmo4}} |  |
+| {{bienImmobilier5}} |  |  |  |  |  | {{eu-titleImmo5}} |  | {{eu-comImmo5}} |  | {{eu-spouseTitleImmo5}} |  |
+| {{bienImmobilier6}} |  |  |  |  |  | {{eu-titleImmo6}} |  | {{eu-comImmo6}} |  | {{eu-spouseTitleImmo6}} |  |
+| {{bienImmobilier7}} |  |  |  |  |  | {{eu-titleImmo7}} |  | {{eu-comImmo7}} |  | {{eu-spouseTitleImmo7}} |  |
+| {{bienImmobilier8}} |  |  |  |  |  | {{eu-titleImmo8}} |  | {{eu-comImmo8}} |  | {{eu-spouseTitleImmo8}} |  |
+| {{bienImmobilier9}} |  |  |  |  |  | {{eu-titleImmo9}} |  | {{eu-comImmo9}} |  | {{eu-spouseTitleImmo9}} |  |
+| {{bienImmobilier10}} |  |  |  |  |  | {{eu-titleImmo10}} |  | {{eu-comImmo10}} |  | {{eu-spouseTitleImmo10}} |  |
+| **Biens professionnels ({{eu-totalPro}} net \- {{pct-totalPro}})** |  |  |  |  |  |  |  |  |  |  |  |
+| {{bienProfessionnel1}} |  |  |  |  |  | {{eu-titlePro1}} |  | {{eu-comPro1}} |  | {{eu-spouseTitlePro1}} |  |
+| {{bienProfessionnel2}} |  |  |  |  |  | {{eu-titlePro2}} |  | {{eu-comPro2}} |  | {{eu-spouseTitlePro2}} |  |
+| {{bienProfessionnel3}} |  |  |  |  |  | {{eu-titlePro3}} |  | {{eu-comPro3}} |  | {{eu-spouseTitlePro3}} |  |
+| {{bienProfessionnel4}} |  |  |  |  |  | {{eu-titlePro4}} |  | {{eu-comPro4}} |  | {{eu-spouseTitlePro4}} |  |
+| {{bienProfessionnel5}} |  |  |  |  |  | {{eu-titlePro5}} |  | {{eu-comPro5}} |  | {{eu-spouseTitlePro5}} |  |
+| {{bienProfessionnel6}} |  |  |  |  |  | {{eu-titlePro6}} |  | {{eu-comPro6}} |  | {{eu-spouseTitlePro6}} |  |
+| {{bienProfessionnel7}} |  |  |  |  |  | {{eu-titlePro7}} |  | {{eu-comPro7}} |  | {{eu-spouseTitlePro7}} |  |
+| {{bienProfessionnel8}} |  |  |  |  |  | {{eu-titlePro8}} |  | {{eu-comPro8}} |  | {{eu-spouseTitlePro8}} |  |
+| {{bienProfessionnel9}} |  |  |  |  |  | {{eu-titlePro9}} |  | {{eu-comPro9}} |  | {{eu-spouseTitlePro9}} |  |
+| {{bienProfessionnel10}} |  |  |  |  |  | {{eu-titlePro10}} |  | {{eu-comPro10}} |  | {{eu-spouseTitlePro10}} |  |
+| **Patrimoine financier ({{eu-totalFi}} net \- {{pct-totalFi}})** |  |  |  |  |  |  |  |  |  |  |  |
+| {{bienFinancier1}} |  |  |  |  |  | {{eu-titleFi1}} |  | {{eu-comFi1}} |  | {{eu-spouseTitleFi1}} |  |
+| {{bienFinancier2}} |  |  |  |  |  | {{eu-titleFi2}} |  | {{eu-comFi2}} |  | {{eu-spouseTitleFi2}} |  |
+| {{bienFinancier3}} |  |  |  |  |  | {{eu-titleFi3}} |  | {{eu-comFi3}} |  | {{eu-spouseTitleFi3}} |  |
+| {{bienFinancier4}} |  |  |  |  |  | {{eu-titleFi4}} |  | {{eu-comFi4}} |  | {{eu-spouseTitleFi4}} |  |
+| {{bienFinancier5}} |  |  |  |  |  | {{eu-titleFi5}} |  | {{eu-comFi5}} |  | {{eu-spouseTitleFi5}} |  |
+| {{bienFinancier6}} |  |  |  |  |  | {{eu-titleFi6}} |  | {{eu-comFi6}} |  | {{eu-spouseTitleFi6}} |  |
+| {{bienFinancier7}} |  |  |  |  |  | {{eu-titleFi7}} |  | {{eu-comFi7}} |  | {{eu-spouseTitleFi7}} |  |
+| {{bienFinancier8}} |  |  |  |  |  | {{eu-titleFi8}} |  | {{eu-comFi8}} |  | {{eu-spouseTitleFi8}} |  |
+| {{bienFinancier9}} |  |  |  |  |  | {{eu-titleFi9}} |  | {{eu-comFi9}} |  | {{eu-spouseTitleFi9}} |  |
+| {{bienFinancier10}} |  |  |  |  |  | {{eu-titleFi10}} |  | {{eu-comFi10}} |  | {{eu-spouseTitleFi10}} |  |
+| **Patrimoine net** |  |  |  |  |  | **{{eu-totalTitle}}** |  | **{{eu-totalCom}}** |  | **{{eu-totalSpouseTitle}}** |  |
+| **Patrimoine net total** |  |  |  |  |  |  |  |  |  | **{{eu-totalPat}}** |  |
 
-{{bienFinancier2}}           → Dénomination du bien financier 2
-{{titleFi2}}                 → Valeur du bien 2 (détention "Vous")
-{{comFi2}}                   → Valeur du bien 2 (détention "Commun")
-{{spouseTitleFi2}}           → Valeur du bien 2 (détention "Votre conjoint")
+### **Tableau Revenus et Charges**
 
-... (jusqu'à bienFinancier10, titleFi10, comFi10, spouseTitleFi10)
-```
-
-### 🏢 **Patrimoine Professionnel (1 à 10 biens)**
-```
-{{bienProfessionnel1}}       → Dénomination du bien professionnel 1
-{{titlePro1}}                → Valeur du bien 1 (détention "Vous")
-{{comPro1}}                  → Valeur du bien 1 (détention "Commun")
-{{spouseTitlePro1}}          → Valeur du bien 1 (détention "Votre conjoint")
-
-{{bienProfessionnel2}}       → Dénomination du bien professionnel 2
-{{titlePro2}}                → Valeur du bien 2 (détention "Vous")
-{{comPro2}}                  → Valeur du bien 2 (détention "Commun")
-{{spouseTitlePro2}}          → Valeur du bien 2 (détention "Votre conjoint")
-
-... (jusqu'à bienProfessionnel10, titlePro10, comPro10, spouseTitlePro10)
-```
-
-### 📊 **Totaux et Pourcentages**
-```
-{{totalImmo}}                → Total patrimoine immobilier
-{{totalFi}}                  → Total patrimoine financier
-{{totalPro}}                 → Total patrimoine professionnel
-{{totalTitle}}               → Total détention client ("Vous")
-{{totalCom}}                 → Total détention commune ("Commun")
-{{totalSpouseTitle}}         → Total détention conjoint ("Votre conjoint")
-{{totalPat}}                 → Total patrimoine global
-```
+| Revenus |  |  |  |  |  | Charges |  |  |  |  |  |
+| ----- | ----- | ----- | ----- | ----: | ----- | ----- | ----- | ----- | ----- | ----: | ----- |
+| {{intitule_revenu1}} |  |  |  | {{eu-montant_revenu1}} |  | {{intitule_charge1}} |  |  |  | {{eu-montant_charge1}} |  |
+| {{intitule_revenu2}} |  |  |  | {{eu-montant_revenu2}} |  | {{intitule_charge2}} |  |  |  | {{eu-montant_charge2}} |  |
+| {{intitule_revenu3}} |  |  |  | {{eu-montant_revenu3}} |  | {{intitule_charge3}} |  |  |  | {{eu-montant_charge3}} |  |
+| {{intitule_revenu4}} |  |  |  | {{eu-montant_revenu4}} |  | {{intitule_charge4}} |  |  |  | {{eu-montant_charge4}} |  |
+| {{intitule_revenu5}} |  |  |  | {{eu-montant_revenu5}} |  | {{intitule_charge5}} |  |  |  | {{eu-montant_charge5}} |  |
+| {{intitule_revenu6}} |  |  |  | {{eu-montant_revenu6}} |  | {{intitule_charge6}} |  |  |  | {{eu-montant_charge6}} |  |
+| {{intitule_revenu7}} |  |  |  | {{eu-montant_revenu7}} |  | {{intitule_charge7}} |  |  |  | {{eu-montant_charge7}} |  |
+| {{intitule_revenu8}} |  |  |  | {{eu-montant_revenu8}} |  | {{intitule_charge8}} |  |  |  | {{eu-montant_charge8}} |  |
+| {{intitule_revenu9}} |  |  |  | {{eu-montant_revenu9}} |  | {{intitule_charge9}} |  |  |  | {{eu-montant_charge9}} |  |
+| {{intitule_revenu10}} |  |  |  | {{eu-montant_revenu10}} |  | {{intitule_charge10}} |  |  |  | {{eu-montant_charge10}} |  |
+| **Total** |  |  |  | {{eu-montant_total__revenus}} |  | **Total** |  |  |  | {{eu-montant_total__charges}} |  |
 
 ### 💰 **Variables Financières - Revenus et Charges**
 ```
@@ -192,23 +199,38 @@
 
 Toutes les variables numériques peuvent être préfixées pour obtenir différents formats. Voici les préfixes disponibles :
 
-```
-{{variable}}                → Valeur brute (ex: 150000)
-{{eu-variable}}             → Formaté avec euros (ex: 150 000 €)
-{{M-variable}}              → Formaté en millions (ex: 0,15 M€)
-{{nb-variable}}             → Formaté en nombre (ex: 150 000)
-{{pct-variable}}            → Formaté en pourcentage (ex: 15%)
-```
+### Nouveaux préfixes principaux
+- `{{M-variable}}` → Capitalise seulement la première lettre
+- `{{mm-variable}}` → Tout en minuscules  
+- `{{MM-variable}}` → Tout en majuscules
+- `{{eu-variable}}` → Formatage en euros, arrondi à l'entier supérieur
+- `{{%-variable}}` → Formatage en pourcentage sans espace avant le %
+- `{{block-variable}}` → Blocs conditionnels (affichés seulement si condition remplie)
 
-### 💳 **Exemples avec Patrimoine**
+### Anciens préfixes (compatibilité maintenue)
+- `{{cap-variable}}` → Première lettre majuscule (équivalent à M-)
+- `{{pct-variable}}` → Formatage pourcentage avec espace (équivalent à %- mais avec espace)
+- `{{nb-variable}}` → Nombre formaté
+- `{{k-variable}}` → Milliers (format "123 k€")
+- `{{ord-variable}}` → Nombre ordinal (1er, 2ème, etc.)
 
-Pour un bien immobilier de 150 000 € :
+### Variables de blocs conditionnels spéciaux
+- `{{block-childrenInfo}}` → "Nombre d'enfants : X" (seulement si enfants > 0)
+- `{{block-childrenPresent}}` → "true" ou "false"
+- `{{block-spouseInfo}}` → "Conjoint : Prénom Nom" (seulement si conjoint existe)
+- `{{block-spousePresent}}` → "true" ou "false"
+- `{{block-marriageInfo}}` → "Marié(e) le JJ/MM/AAAA à Lieu" (seulement si marié)
+- `{{block-marriagePresent}}` → "true" ou "false"
 
+### Exemples de formatage
 ```
 {{titleImmo1}}              → 150000
 {{eu-titleImmo1}}           → 150 000 €
 {{M-titleImmo1}}            → 0,15 M€
 {{nb-titleImmo1}}           → 150 000
+{{pct-titleImmo1}}          → 15%
+{{%-titleImmo1}}            → 15%
+{{block-titleImmo1}}        → Affiché si condition remplie
 ```
 
 Pour un pourcentage de patrimoine (15%) :
