@@ -136,6 +136,194 @@ const cspOptions = [
   { value: "86", label: "Personnes diverses sans activité professionnelle de 60 ans et plus" },
 ];
 
+// Données des nationalités (principaux pays)
+const nationalityOptions = [
+  { value: "afghane", label: "Afghane" },
+  { value: "albanaise", label: "Albanaise" },
+  { value: "algerienne", label: "Algérienne" },
+  { value: "allemande", label: "Allemande" },
+  { value: "americaine", label: "Américaine" },
+  { value: "andorrane", label: "Andorrane" },
+  { value: "angolaise", label: "Angolaise" },
+  { value: "antiguaise", label: "Antiguaise" },
+  { value: "argentine", label: "Argentine" },
+  { value: "armenienne", label: "Arménienne" },
+  { value: "australienne", label: "Australienne" },
+  { value: "autrichienne", label: "Autrichienne" },
+  { value: "azerbaidjanaise", label: "Azerbaïdjanaise" },
+  { value: "bahamienne", label: "Bahamienne" },
+  { value: "bahreinienne", label: "Bahreïnienne" },
+  { value: "bangladaise", label: "Bangladaise" },
+  { value: "barbadienne", label: "Barbadienne" },
+  { value: "belge", label: "Belge" },
+  { value: "belizienne", label: "Bélizienne" },
+  { value: "beninoise", label: "Béninoise" },
+  { value: "bhoutanaise", label: "Bhoutanaise" },
+  { value: "bielorusse", label: "Biélorusse" },
+  { value: "birmane", label: "Birmane" },
+  { value: "bolivienne", label: "Bolivienne" },
+  { value: "bosnienne", label: "Bosnienne" },
+  { value: "botswanaise", label: "Botswanaise" },
+  { value: "bresilienne", label: "Brésilienne" },
+  { value: "britannique", label: "Britannique" },
+  { value: "bruneienne", label: "Brunéienne" },
+  { value: "bulgare", label: "Bulgare" },
+  { value: "burkinabe", label: "Burkinabé" },
+  { value: "burundaise", label: "Burundaise" },
+  { value: "cambodgienne", label: "Cambodgienne" },
+  { value: "camerounaise", label: "Camerounaise" },
+  { value: "canadienne", label: "Canadienne" },
+  { value: "cap-verdienne", label: "Cap-verdienne" },
+  { value: "centrafricaine", label: "Centrafricaine" },
+  { value: "chilienne", label: "Chilienne" },
+  { value: "chinoise", label: "Chinoise" },
+  { value: "chypriote", label: "Chypriote" },
+  { value: "colombienne", label: "Colombienne" },
+  { value: "comorienne", label: "Comorienne" },
+  { value: "congolaise", label: "Congolaise" },
+  { value: "costaricienne", label: "Costaricienne" },
+  { value: "croate", label: "Croate" },
+  { value: "cubaine", label: "Cubaine" },
+  { value: "danoise", label: "Danoise" },
+  { value: "djiboutienne", label: "Djiboutienne" },
+  { value: "dominicaine", label: "Dominicaine" },
+  { value: "egyptienne", label: "Égyptienne" },
+  { value: "emirienne", label: "Émirienne" },
+  { value: "equatorienne", label: "Équatorienne" },
+  { value: "erythreenne", label: "Érythréenne" },
+  { value: "espagnole", label: "Espagnole" },
+  { value: "estonienne", label: "Estonienne" },
+  { value: "ethiopienne", label: "Éthiopienne" },
+  { value: "fidjienne", label: "Fidjienne" },
+  { value: "finlandaise", label: "Finlandaise" },
+  { value: "francaise", label: "Française" },
+  { value: "gabonaise", label: "Gabonaise" },
+  { value: "gambienne", label: "Gambienne" },
+  { value: "georgienne", label: "Géorgienne" },
+  { value: "ghaneenne", label: "Ghanéenne" },
+  { value: "grecque", label: "Grecque" },
+  { value: "grenadienne", label: "Grenadienne" },
+  { value: "guatemalteque", label: "Guatémaltèque" },
+  { value: "guineenne", label: "Guinéenne" },
+  { value: "guyanienne", label: "Guyanienne" },
+  { value: "haitienne", label: "Haïtienne" },
+  { value: "hondurienne", label: "Hondurienne" },
+  { value: "hongroise", label: "Hongroise" },
+  { value: "indienne", label: "Indienne" },
+  { value: "indonesienne", label: "Indonésienne" },
+  { value: "irakienne", label: "Irakienne" },
+  { value: "iranienne", label: "Iranienne" },
+  { value: "irlandaise", label: "Irlandaise" },
+  { value: "islandaise", label: "Islandaise" },
+  { value: "israelienne", label: "Israélienne" },
+  { value: "italienne", label: "Italienne" },
+  { value: "ivoirienne", label: "Ivoirienne" },
+  { value: "jamaicaine", label: "Jamaïcaine" },
+  { value: "japonaise", label: "Japonaise" },
+  { value: "jordanienne", label: "Jordanienne" },
+  { value: "kazakhe", label: "Kazakhe" },
+  { value: "kenyane", label: "Kényane" },
+  { value: "kirghize", label: "Kirghize" },
+  { value: "kiribatienne", label: "Kiribatienne" },
+  { value: "koweitienne", label: "Koweïtienne" },
+  { value: "laotienne", label: "Laotienne" },
+  { value: "lesothane", label: "Lesothane" },
+  { value: "lettone", label: "Lettone" },
+  { value: "libanaise", label: "Libanaise" },
+  { value: "liberienne", label: "Libérienne" },
+  { value: "libyenne", label: "Libyenne" },
+  { value: "liechtensteinoise", label: "Liechtensteinoise" },
+  { value: "lituanienne", label: "Lituanienne" },
+  { value: "luxembourgeoise", label: "Luxembourgeoise" },
+  { value: "macedonienne", label: "Macédonienne" },
+  { value: "malgache", label: "Malgache" },
+  { value: "malaisienne", label: "Malaisienne" },
+  { value: "malawienne", label: "Malawienne" },
+  { value: "maldivienne", label: "Maldivienne" },
+  { value: "malienne", label: "Malienne" },
+  { value: "maltaise", label: "Maltaise" },
+  { value: "marocaine", label: "Marocaine" },
+  { value: "marshallaise", label: "Marshallaise" },
+  { value: "mauricienne", label: "Mauricienne" },
+  { value: "mauritanienne", label: "Mauritanienne" },
+  { value: "mexicaine", label: "Mexicaine" },
+  { value: "micronesienne", label: "Micronésienne" },
+  { value: "moldave", label: "Moldave" },
+  { value: "monegasque", label: "Monégasque" },
+  { value: "mongole", label: "Mongole" },
+  { value: "montenegrine", label: "Monténégrine" },
+  { value: "mozambicaine", label: "Mozambicaine" },
+  { value: "namibienne", label: "Namibienne" },
+  { value: "nauruane", label: "Nauruane" },
+  { value: "nepalaise", label: "Népalaise" },
+  { value: "nicaraguayenne", label: "Nicaraguayenne" },
+  { value: "nigeriane", label: "Nigériane" },
+  { value: "nigerienne", label: "Nigérienne" },
+  { value: "nord-coreenne", label: "Nord-coréenne" },
+  { value: "norvegienne", label: "Norvégienne" },
+  { value: "neo-zelandaise", label: "Néo-zélandaise" },
+  { value: "omanaise", label: "Omanaise" },
+  { value: "ougandaise", label: "Ougandaise" },
+  { value: "ouzbeke", label: "Ouzbèke" },
+  { value: "pakistanaise", label: "Pakistanaise" },
+  { value: "palau", label: "Palau" },
+  { value: "palestinienne", label: "Palestinienne" },
+  { value: "panameenne", label: "Panaméenne" },
+  { value: "papouane", label: "Papouane" },
+  { value: "paraguayenne", label: "Paraguayenne" },
+  { value: "peruvienne", label: "Péruvienne" },
+  { value: "philippine", label: "Philippine" },
+  { value: "polonaise", label: "Polonaise" },
+  { value: "portugaise", label: "Portugaise" },
+  { value: "qatarienne", label: "Qatarienne" },
+  { value: "roumaine", label: "Roumaine" },
+  { value: "russe", label: "Russe" },
+  { value: "rwandaise", label: "Rwandaise" },
+  { value: "saint-marinaise", label: "Saint-marinaise" },
+  { value: "salvadorienne", label: "Salvadorienne" },
+  { value: "samoane", label: "Samoane" },
+  { value: "saoudienne", label: "Saoudienne" },
+  { value: "senegalaise", label: "Sénégalaise" },
+  { value: "serbe", label: "Serbe" },
+  { value: "seychelloise", label: "Seychelloise" },
+  { value: "sierra-leonaise", label: "Sierra-léonaise" },
+  { value: "singapourienne", label: "Singapourienne" },
+  { value: "slovaque", label: "Slovaque" },
+  { value: "slovene", label: "Slovène" },
+  { value: "solomonaise", label: "Solomonaise" },
+  { value: "somalienne", label: "Somalienne" },
+  { value: "soudanaise", label: "Soudanaise" },
+  { value: "sri-lankaise", label: "Sri-lankaise" },
+  { value: "sud-africaine", label: "Sud-africaine" },
+  { value: "sud-coreenne", label: "Sud-coréenne" },
+  { value: "suedoise", label: "Suédoise" },
+  { value: "suisse", label: "Suisse" },
+  { value: "surinamaise", label: "Surinamaise" },
+  { value: "swazie", label: "Swazie" },
+  { value: "syrienne", label: "Syrienne" },
+  { value: "tadjike", label: "Tadjike" },
+  { value: "tanzanienne", label: "Tanzanienne" },
+  { value: "tchadienne", label: "Tchadienne" },
+  { value: "tcheque", label: "Tchèque" },
+  { value: "thailandaise", label: "Thaïlandaise" },
+  { value: "timoraise", label: "Timoraise" },
+  { value: "togolaise", label: "Togolaise" },
+  { value: "tongienne", label: "Tongienne" },
+  { value: "trinidadienne", label: "Trinidadienne" },
+  { value: "tunisienne", label: "Tunisienne" },
+  { value: "turkmene", label: "Turkmène" },
+  { value: "turque", label: "Turque" },
+  { value: "tuvaluane", label: "Tuvaluane" },
+  { value: "ukrainienne", label: "Ukrainienne" },
+  { value: "uruguayenne", label: "Uruguayenne" },
+  { value: "vanuataise", label: "Vanuataise" },
+  { value: "venezuelienne", label: "Vénézuélienne" },
+  { value: "vietnamienne", label: "Vietnamienne" },
+  { value: "yemenite", label: "Yéménite" },
+  { value: "zambienne", label: "Zambienne" },
+  { value: "zimbabweenne", label: "Zimbabwéenne" },
+];
+
 // Composant CSP Combobox
 function CSPCombobox({ value, onChange, placeholder = "Sélectionner..." }: { value: string, onChange: (value: string) => void, placeholder?: string }) {
   const [open, setOpen] = useState(false)
@@ -164,9 +352,62 @@ function CSPCombobox({ value, onChange, placeholder = "Sélectionner..." }: { va
               {cspOptions.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={option.value}
-                  onSelect={(currentValue) => {
-                    onChange(currentValue === value ? "" : currentValue)
+                  value={option.label}
+                  keywords={[option.label, option.value]}
+                  onSelect={() => {
+                    onChange(option.value)
+                    setOpen(false)
+                  }}
+                >
+                  {option.label}
+                  <Check
+                    className={cn(
+                      "ml-auto",
+                      value === option.value ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+// Composant Nationalité Combobox
+function NationalityCombobox({ value, onChange, placeholder = "Sélectionner..." }: { value: string, onChange: (value: string) => void, placeholder?: string }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between"
+        >
+          {value
+            ? nationalityOptions.find((option) => option.value === value)?.label
+            : placeholder}
+          <ChevronsUpDown className="opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[300px] p-0">
+        <Command>
+          <CommandInput placeholder="Rechercher une nationalité..." className="h-9" />
+          <CommandList>
+            <CommandEmpty>Aucune nationalité trouvée.</CommandEmpty>
+            <CommandGroup>
+              {nationalityOptions.map((option) => (
+                <CommandItem
+                  key={option.value}
+                  value={option.label}
+                  keywords={[option.label, option.value]}
+                  onSelect={() => {
+                    onChange(option.value)
                     setOpen(false)
                   }}
                 >
@@ -359,7 +600,7 @@ export default function PersonalInfoPage() {
     
     // Appliquer les formatages selon le champ
     const upperCaseFields = ['lastName', 'spouseLastName', 'birthName', 'spouseBirthName']
-    const titleCaseFields = ['firstName', 'spouseFirstName', 'country', 'spouseCountry', 'nationality', 'spouseNationality', 'marriagePlace', 'profession', 'spouseProfession', 'company', 'spouseCompany']
+    const titleCaseFields = ['firstName', 'spouseFirstName', 'country', 'spouseCountry', 'marriagePlace', 'profession', 'spouseProfession']
     
     if (upperCaseFields.includes(field)) {
       processedValue = formatUpperCase(value)
@@ -433,11 +674,11 @@ export default function PersonalInfoPage() {
 
   // Ajouter un enfant
   const addChild = () => {
-    const childNumber = formData.children.length + 1;
     setFormData(prev => {
+      const childNumber = prev.children.length + 1;
       const newChildren = [...prev.children, { 
         firstName: `Enfant ${childNumber}`, 
-        lastName: "", 
+        lastName: prev.lastName || "", // Hérite du nom de famille par défaut
         birthDate: "", 
         parentage: "commun" as "commun" | "propre_parent1" | "propre_parent2" | "" 
       }];
@@ -448,11 +689,19 @@ export default function PersonalInfoPage() {
       }
       return newFormData;
     });
+    
+    // Ouvrir automatiquement le panneau d'édition pour le nouvel enfant
+    setTimeout(() => {
+      const newIndex = formData.children.length;
+      selectChildForEdit(newIndex);
+    }, 100);
   };
 
   // Sauvegarder les données dans le localStorage
   const saveChildData = () => {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(formData));
+    if (typeof window !== "undefined") {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(formData));
+    }
     setShowChildPanel(false);
     setEditingChildIndex(null);
   };
@@ -468,16 +717,19 @@ export default function PersonalInfoPage() {
     setFormData(prev => {
       const newChildren = [...prev.children];
       newChildren.splice(index, 1);
-      return { ...prev, children: newChildren };
+      const newFormData = { ...prev, children: newChildren };
+      
+      // Sauvegarde automatique
+      if (typeof window !== "undefined") {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newFormData));
+      }
+      
+      return newFormData;
     });
     
-    // Si on supprime l'enfant en cours d'édition, réinitialiser l'édition
-    if (editingChildIndex === index) {
-      setEditingChildIndex(null);
-    } else if (editingChildIndex !== null && editingChildIndex > index) {
-      // Ajuster l'index si on supprime un enfant avant celui en cours d'édition
-      setEditingChildIndex(editingChildIndex - 1);
-    }
+    // Fermer le panneau d'édition
+    setShowChildPanel(false);
+    setEditingChildIndex(null);
   };
 
   return (
@@ -748,20 +1000,18 @@ export default function PersonalInfoPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="nationality">Nationalité</Label>
-                    <Input
-                      id="nationality"
-                      placeholder="Française"
-                      value={formData.nationality}
-                      onChange={(e) => handleInputChange("nationality", e.target.value)}
+                    <NationalityCombobox 
+                      value={formData.nationality} 
+                      onChange={(value) => handleInputChange("nationality", value)}
+                      placeholder="Sélectionner une nationalité"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="spouse-nationality">Nationalité du conjoint</Label>
-                    <Input
-                      id="spouse-nationality"
-                      placeholder="Française"
-                      value={formData.spouseNationality}
-                      onChange={(e) => handleInputChange("spouseNationality", e.target.value)}
+                    <NationalityCombobox 
+                      value={formData.spouseNationality} 
+                      onChange={(value) => handleInputChange("spouseNationality", value)}
+                      placeholder="Sélectionner une nationalité"
                     />
                   </div>
                 </div>
@@ -957,10 +1207,10 @@ export default function PersonalInfoPage() {
                                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 rounded-md flex items-center justify-center transition-all">
                                              <span className="opacity-0 group-hover:opacity-100 text-xs bg-black bg-opacity-70 text-white px-2 py-1 rounded transition-opacity">Modifier</span>
                                            </div>
-                                        <div>{child.firstName}</div>
-                                        <div className="text-xs">
-                                          {calculateAge(child.birthDate) || "--"} ans
-                                        </div>
+                                         <div>{child.firstName || "Sans nom"}</div>
+                                         <div className="text-xs">
+                                           {calculateAge(child.birthDate) || "--"} ans
+                                         </div>
                                       </div>
                                     ))}
                                   </div>
@@ -999,7 +1249,7 @@ export default function PersonalInfoPage() {
                                             <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 rounded-md flex items-center justify-center transition-all">
                                               <span className="opacity-0 group-hover:opacity-100 text-xs bg-black bg-opacity-70 text-white px-2 py-1 rounded transition-opacity">Modifier</span>
                                             </div>
-                                            <div>{child.firstName}</div>
+                                            <div>{child.firstName || "Sans nom"}</div>
                                             <div className="text-xs">
                                               {calculateAge(child.birthDate) || "--"} ans
                                             </div>
@@ -1032,10 +1282,10 @@ export default function PersonalInfoPage() {
                                         <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 rounded-md flex items-center justify-center transition-all">
                                           <span className="opacity-0 group-hover:opacity-100 text-xs bg-black bg-opacity-70 text-white px-2 py-1 rounded transition-opacity">Modifier</span>
                                         </div>
-                                        <div>{child.firstName}</div>
-                                        <div className="text-xs">
-                                          {calculateAge(child.birthDate) || "--"} ans
-                                        </div>
+                                         <div>{child.firstName || "Sans nom"}</div>
+                                         <div className="text-xs">
+                                           {calculateAge(child.birthDate) || "--"} ans
+                                         </div>
                                       </div>
                                     ))}
                                   </div>
@@ -1049,7 +1299,7 @@ export default function PersonalInfoPage() {
                   )}
                   
                   {/* Panneau latéral pour l'édition d'un enfant */}
-                  {showChildPanel && editingChildIndex !== null && (
+                  {showChildPanel && editingChildIndex !== null && editingChildIndex < formData.children.length && (
                     <div className="fixed inset-y-0 right-0 w-80 bg-white shadow-lg p-4 z-50 overflow-y-auto">
                       <div className="flex justify-between items-center mb-4">
                         <h3 className="font-medium">Modifier l'enfant</h3>
@@ -1057,7 +1307,10 @@ export default function PersonalInfoPage() {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          onClick={() => setShowChildPanel(false)}
+                          onClick={() => {
+                            setShowChildPanel(false);
+                            setEditingChildIndex(null);
+                          }}
                         >
                           <X className="h-4 w-4" />
                         </Button>
@@ -1068,7 +1321,7 @@ export default function PersonalInfoPage() {
                           <Label htmlFor="child-firstname" className="text-sm">Prénom</Label>
                           <Input
                             id="child-firstname"
-                            value={formData.children[editingChildIndex].firstName}
+                            value={formData.children[editingChildIndex]?.firstName || ""}
                             onChange={(e) => handleChildChange(editingChildIndex, "firstName", e.target.value)}
                             placeholder="Prénom"
                           />
@@ -1079,7 +1332,7 @@ export default function PersonalInfoPage() {
                           <Input
                             id="child-birthdate"
                             type="date"
-                            value={formData.children[editingChildIndex].birthDate}
+                            value={formData.children[editingChildIndex]?.birthDate || ""}
                             onChange={(e) => handleChildChange(editingChildIndex, "birthDate", e.target.value)}
                           />
                         </div>
@@ -1087,8 +1340,7 @@ export default function PersonalInfoPage() {
                         <div>
                           <Label htmlFor="child-relation" className="text-sm">Parenté</Label>
                           <Select
-                            id="child-relation"
-                            value={formData.children[editingChildIndex].parentage}
+                            value={formData.children[editingChildIndex]?.parentage || ""}
                             onValueChange={(value) => handleChildChange(editingChildIndex, "parentage", value)}
                           >
                             <SelectTrigger>

@@ -16,9 +16,432 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { Spinner } from "@/components/ui/spinner"
-import { Lightbulb, FileText, Download, Volume2, TrendingUp, Shield, PiggyBank, Users, Gift, HeartHandshake, Check, AlertCircle } from "lucide-react"
+import { Lightbulb, FileText, Download, TrendingUp, Shield, PiggyBank, Users, Gift, HeartHandshake, Check, Eye, EyeOff, Calculator, BarChart3, Clock, CreditCard, Home } from "lucide-react"
 import { exportToPDF as exportToPDFExternal } from "@/lib/pdf-export"
 
+// Interface pour les props du composant FinalizationStep
+interface FinalizationStepProps {
+  selectedPreconisations: number[];
+  filteredRecommendations: Preconisation[];
+  customPriorities: Record<number, "Haute" | "Moyenne" | "Basse">;
+  exportToPDFRapide: () => void;
+  isExportingFast: boolean;
+  setCurrentStep: (step: 'selection' | 'finalization') => void;
+}
+
+// État pour gérer la sélection des sections du plan d'étude
+interface StudyPlanSection {
+  id: string;
+  title: string;
+  description: string;
+  included: boolean;
+}
+
+// Interface pour les simulations disponibles
+interface SimulationItem {
+  id: string;
+  title: string;
+  description: string;
+  type: 'fiscalite' | 'investissement' | 'retraite' | 'emprunt' | 'transmission';
+  status: 'disponible' | 'calculee' | 'non_calculee';
+  included: boolean;
+  lastCalculated?: Date;
+  resultSummary?: string;
+}
+
+// Composant pour l'étape de finalisation
+function FinalizationStep({ selectedPreconisations, filteredRecommendations, customPriorities, exportToPDFRapide, isExportingFast, setCurrentStep }: FinalizationStepProps) {
+  // État pour gérer la sélection des sections du plan d'étude
+  const [studyPlanSections, setStudyPlanSections] = useState<StudyPlanSection[]>([
+    {
+      id: 'informations-client',
+      title: 'Informations Client',
+      description: 'État civil, coordonnées et situation personnelle',
+      included: true
+    },
+    {
+      id: 'informations-conjoint',
+      title: 'Informations Conjoint',
+      description: 'Données du conjoint et situation familiale',
+      included: true
+    },
+    {
+      id: 'situation-familiale',
+      title: 'Situation Familiale',
+      description: 'Régime matrimonial, enfants et liens familiaux',
+      included: true
+    },
+    {
+      id: 'situation-professionnelle',
+      title: 'Situation Professionnelle',
+      description: 'Activité, revenus et évolution de carrière',
+      included: true
+    },
+    {
+      id: 'situation-patrimoniale',
+      title: 'Situation Patrimoniale',
+      description: 'Bilan détaillé des actifs et passifs',
+      included: true
+    },
+    {
+      id: 'analyse-revenus-charges',
+      title: 'Analyse Revenus et Charges',
+      description: 'Flux financiers et capacité d\'épargne',
+      included: true
+    },
+    {
+      id: 'objectifs-patrimoniaux',
+      title: 'Objectifs Patrimoniaux',
+      description: 'Projets et stratégie patrimoniale',
+      included: true
+    },
+    {
+      id: 'preconisations-patrimoniales',
+      title: 'Préconisations Patrimoniales',
+      description: 'Recommandations personnalisées sélectionnées',
+      included: true
+    },
+    {
+      id: 'planning-mise-oeuvre',
+      title: 'Planning de Mise en Œuvre',
+      description: 'Échéancier et étapes de réalisation',
+      included: true
+    },
+    {
+      id: 'annexes-documents',
+      title: 'Annexes et Documents',
+      description: 'Pièces justificatives et références',
+      included: false
+    }
+  ]);
+
+  // État pour gérer les simulations disponibles
+  const [availableSimulations, setAvailableSimulations] = useState<SimulationItem[]>([
+    {
+      id: 'simulation-fiscale',
+      title: 'Optimisation Fiscale',
+      description: 'Calculs d\'optimisation de l\'imposition et des niches fiscales',
+      type: 'fiscalite',
+      status: 'calculee',
+      included: false,
+      lastCalculated: new Date(),
+      resultSummary: 'Économie fiscale potentielle : 2 400€/an'
+    },
+    {
+      id: 'simulation-investissement',
+      title: 'Projection d\'Investissement',
+      description: 'Simulation de rendements et scénarios d\'investissement',
+      type: 'investissement',
+      status: 'calculee',
+      included: false,
+      lastCalculated: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      resultSummary: 'Rendement projeté : 6,2%/an sur 15 ans'
+    },
+    {
+      id: 'simulation-retraite',
+      title: 'Projection Retraite',
+      description: 'Estimation des revenus et besoins à la retraite',
+      type: 'retraite',
+      status: 'calculee',
+      included: false,
+      lastCalculated: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      resultSummary: 'Besoin complément retraite : 1 200€/mois'
+    },
+    {
+      id: 'simulation-emprunt',
+      title: 'Capacité d\'Emprunt',
+      description: 'Analyse de la capacité d\'endettement et optimisation crédit',
+      type: 'emprunt',
+      status: 'disponible',
+      included: false
+    },
+    {
+      id: 'simulation-transmission',
+      title: 'Transmission Patrimoniale',
+      description: 'Simulation des droits de succession et stratégies de transmission',
+      type: 'transmission',
+      status: 'non_calculee',
+      included: false
+    }
+  ]);
+
+  // Fonction pour basculer l'inclusion d'une section
+  const toggleSectionInclusion = (sectionId: string) => {
+    setStudyPlanSections(prev => 
+      prev.map(section => 
+        section.id === sectionId 
+          ? { ...section, included: !section.included }
+          : section
+      )
+    );
+  };
+
+  // Fonction pour basculer l'inclusion d'une simulation
+  const toggleSimulationInclusion = (simulationId: string) => {
+    setAvailableSimulations(prev => 
+      prev.map(simulation => 
+        simulation.id === simulationId 
+          ? { ...simulation, included: !simulation.included }
+          : simulation
+      )
+    );
+  };
+
+  // Obtenir les préconisations sélectionnées
+  const selectedRecommendations = filteredRecommendations.filter(rec => 
+    selectedPreconisations.includes(rec.id)
+  );
+
+  // Fonction utilitaire pour obtenir la couleur de priorité
+  const getPriorityColor = (priority: "Haute" | "Moyenne" | "Basse") => {
+    switch (priority) {
+      case "Haute": return "text-red-600 bg-red-50 border-red-200";
+      case "Moyenne": return "text-orange-600 bg-orange-50 border-orange-200";
+      case "Basse": return "text-green-600 bg-green-50 border-green-200";
+      default: return "text-gray-600 bg-gray-50 border-gray-200";
+    }
+  };
+
+  return (
+    <>
+      {/* Header avec progress bar intégrée */}
+      <div className="space-y-6">
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-sm font-medium">✓</div>
+              <span className="text-green-600">Sélection</span>
+            </div>
+            <div className="flex-1 h-1 bg-gray-200 rounded-full mx-4 max-w-32">
+              <div className="h-full bg-blue-600 rounded-full" style={{width: '100%'}}></div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">2</div>
+              <span className="font-medium text-blue-600">Finalisation</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+
+
+      {/* Plan de l'étude */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            Plan de l'étude
+          </CardTitle>
+          <CardDescription>
+            Sélectionnez les sections que vous souhaitez inclure dans votre rapport final.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {studyPlanSections.map((section) => (
+              <div 
+                key={section.id} 
+                className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${
+                  section.included ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'
+                }`}
+                onClick={() => toggleSectionInclusion(section.id)}
+              >
+                <div className="flex-shrink-0">
+                  {section.included ? (
+                    <Eye className="h-5 w-5 text-blue-600" />
+                  ) : (
+                    <EyeOff className="h-5 w-5 text-gray-400" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h4 className={`font-medium ${
+                    section.included ? 'text-blue-900' : 'text-gray-600'
+                  }`}>
+                    {section.title}
+                  </h4>
+                  <p className={`text-sm ${
+                    section.included ? 'text-blue-700' : 'text-gray-500'
+                  }`}>
+                    {section.description}
+                  </p>
+                </div>
+                <div className="flex-shrink-0">
+                  <div className={`w-4 h-4 rounded border-2 ${
+                    section.included 
+                      ? 'bg-blue-600 border-blue-600' 
+                      : 'border-gray-300'
+                  }`}>
+                    {section.included && (
+                      <Check className="w-3 h-3 text-white" />
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+            <p className="text-sm text-blue-700">
+              <strong>Sections incluses :</strong> {studyPlanSections.filter(s => s.included).length} sur {studyPlanSections.length}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Simulateurs */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calculator className="h-5 w-5 text-purple-600" />
+            Simulateurs
+          </CardTitle>
+          <CardDescription>
+            Sélectionnez les calculs et simulations à intégrer dans votre rapport d'analyse.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {availableSimulations.map((simulation) => {
+              const getSimulationIcon = (type: string) => {
+                switch (type) {
+                  case 'fiscalite': return Shield;
+                  case 'investissement': return BarChart3;
+                  case 'retraite': return Clock;
+                  case 'emprunt': return CreditCard;
+                  case 'transmission': return Home;
+                  default: return Calculator;
+                }
+              };
+              
+              const getStatusColor = (status: string) => {
+                switch (status) {
+                  case 'calculee': return 'text-green-600 bg-green-50 border-green-200';
+                  case 'disponible': return 'text-blue-600 bg-blue-50 border-blue-200';
+                  case 'non_calculee': return 'text-gray-600 bg-gray-50 border-gray-200';
+                  default: return 'text-gray-600 bg-gray-50 border-gray-200';
+                }
+              };
+              
+              const getStatusText = (status: string) => {
+                switch (status) {
+                  case 'calculee': return 'Calculée';
+                  case 'disponible': return 'Disponible';
+                  case 'non_calculee': return 'Non calculée';
+                  default: return 'Inconnue';
+                }
+              };
+              
+              const SimulationIcon = getSimulationIcon(simulation.type);
+              
+              return (
+                <div 
+                  key={simulation.id} 
+                  className={`flex items-start gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${
+                    simulation.included ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-gray-200'
+                  }`}
+                  onClick={() => toggleSimulationInclusion(simulation.id)}
+                >
+                  <div className="flex-shrink-0">
+                    <SimulationIcon className={`h-5 w-5 ${
+                      simulation.included ? 'text-purple-600' : 'text-gray-400'
+                    }`} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className={`font-medium ${
+                        simulation.included ? 'text-purple-900' : 'text-gray-600'
+                      }`}>
+                        {simulation.title}
+                      </h4>
+                      <div className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${
+                        getStatusColor(simulation.status)
+                      }`}>
+                        {getStatusText(simulation.status)}
+                      </div>
+                    </div>
+                    <p className={`text-sm ${
+                      simulation.included ? 'text-purple-700' : 'text-gray-500'
+                    }`}>
+                      {simulation.description}
+                    </p>
+                    {simulation.resultSummary && simulation.status === 'calculee' && (
+                      <p className="text-xs text-green-600 mt-1 font-medium">
+                        🏆 {simulation.resultSummary}
+                      </p>
+                    )}
+                    {simulation.lastCalculated && simulation.status === 'calculee' && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Dernière mise à jour : {simulation.lastCalculated.toLocaleDateString('fr-FR')}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex-shrink-0">
+                    <div className={`w-4 h-4 rounded border-2 ${
+                      simulation.included 
+                        ? 'bg-purple-600 border-purple-600' 
+                        : 'border-gray-300'
+                    }`}>
+                      {simulation.included && (
+                        <Check className="w-3 h-3 text-white" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-4 p-3 bg-purple-50 rounded-lg">
+            <p className="text-sm text-purple-700">
+              <strong>Simulations incluses :</strong> {availableSimulations.filter(s => s.included).length} sur {availableSimulations.length}
+            </p>
+            {availableSimulations.filter(s => s.included && s.status !== 'calculee').length > 0 && (
+              <p className="text-xs text-orange-600 mt-1">
+                ⚠️ Certaines simulations sélectionnées n'ont pas encore été calculées.
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Boutons de navigation en bas */}
+      <div className="sticky bottom-0 bg-background border-t border-border p-4 mt-8">
+        <div className="flex justify-center gap-4">
+          <Button 
+            size="lg"
+            variant="outline" 
+            onClick={() => setCurrentStep('selection')}
+            className="px-8 py-3 text-lg"
+          >
+            ← Précédent
+          </Button>
+          <Button 
+            size="lg"
+            variant="default" 
+            onClick={exportToPDFRapide}
+            disabled={isExportingFast || selectedPreconisations.length === 0}
+            className="bg-green-600 hover:bg-green-700 px-8 py-3 text-lg"
+          >
+            {isExportingFast ? (
+              <>
+                <Spinner className="mr-2 h-5 w-5" />
+                Export en cours...
+              </>
+            ) : (
+              <>
+                <Download className="w-5 h-5 mr-2" />
+                Exporter l'analyse en PDF
+              </>
+            )}
+          </Button>
+        </div>
+        {selectedPreconisations.length === 0 && (
+          <p className="text-center text-sm text-muted-foreground mt-2">
+            Retournez à l'étape précédente pour sélectionner des préconisations
+          </p>
+        )}
+      </div>
+    </>
+  );
+}
 
 export default function RecommendationsPage() {
   // Utilisation du hook pour récupérer les données du client depuis le localStorage
@@ -69,6 +492,9 @@ export default function RecommendationsPage() {
   const [pdfData, setPdfData] = useState<{pdf: string, filename: string} | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportProgress, setExportProgress] = useState(0);
+  
+  // État pour la navigation entre les étapes
+  const [currentStep, setCurrentStep] = useState<'selection' | 'finalization'>('selection');
   
   // Local storage keys
   const LOCAL_STORAGE_KEY_SELECTED = "selectedPreconisations"
@@ -2403,138 +2829,54 @@ export default function RecommendationsPage() {
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                <BreadcrumbPage>Préconisations</BreadcrumbPage>
+                <BreadcrumbPage>
+                  Préconisations - {currentStep === 'selection' ? 'Sélection' : 'Finalisation'}
+                </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
         </div>
+        
         <div className="ml-auto px-4 flex items-center gap-2">
-          
-          {/* Bouton Export PDF rapide */}
-          <Button 
-            variant="default" 
-            onClick={exportToPDFRapide}
-            disabled={isExportingFast}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            {isExportingFast ? (
-              <>
-                <Spinner className="mr-2 h-4 w-4" />
-                Export...
-              </>
-            ) : (
-              <>
-                <Download className="w-4 h-4 mr-2" />
-                Export PDF rapide
-              </>
-            )}
-          </Button>
-
-          <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <Download className="w-4 h-4 mr-2" />
-                Export PDF (Google Docs)
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Export PDF</DialogTitle>
-                <DialogDescription>
-                  Génération de votre étude patrimoniale personnalisée
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="space-y-4">
-                {/* Liste des préconisations sélectionnées */}
-                <div>
-                  <h4 className="font-medium mb-3 text-sm">Préconisations incluses ({selectedPreconisations.length})</h4>
-                  <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {preconisations
-                      .filter(preco => selectedPreconisations.includes(preco.id))
-                      .sort((a, b) => {
-                        const priorities = { "Haute": 3, "Moyenne": 2, "Basse": 1 };
-                        const aPriority = customPriorities[a.id] || a.priority;
-                        const bPriority = customPriorities[b.id] || b.priority;
-                        return priorities[bPriority] - priorities[aPriority];
-                      })
-                      .map(preco => {
-                        const priority = customPriorities[preco.id] || preco.priority;
-                        return (
-                          <div key={preco.id} className="flex items-center gap-2 text-sm">
-                            <div className={`w-2 h-2 rounded-full ${getPriorityDotColor(priority)}`} />
-                            <span className="truncate">{preco.title}</span>
-                          </div>
-                        );
-                      })
-                    }
-                  </div>
-                </div>
-                
-                {/* Progress bar */}
-                {isExporting && (
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Génération en cours...</span>
-                      <span>{exportProgress}%</span>
-                    </div>
-                    <Progress value={exportProgress} className="h-2" />
-                  </div>
-                )}
-                
-                {/* Boutons d'action */}
-                <div className="flex gap-2 pt-2">
-                  {!isExporting && (
-                    <>
-                      <Button onClick={() => setExportDialogOpen(false)} variant="outline" className="flex-1">
-                        Annuler
-                      </Button>
-                      <Button onClick={exportToPDF} className="flex-1">
-                        Générer PDF
-                      </Button>
-                    </>
-                  )}
-                  {isExporting && (
-                    <Button disabled className="w-full">
-                      <Spinner className="mr-2 h-4 w-4" />
-                      Génération en cours...
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
           <ThemeToggle />
         </div>
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+        {currentStep === 'selection' ? (
+          <>
+            {/* Header avec progress bar intégrée */}
+            <div className="space-y-6">
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-3 mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">1</div>
+                    <span className="font-medium text-blue-600">Sélection</span>
+                  </div>
+                  <div className="flex-1 h-1 bg-gray-200 rounded-full mx-4 max-w-32">
+                    <div className="h-full bg-blue-600 rounded-full" style={{width: '50%'}}></div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-gray-200 text-gray-500 rounded-full flex items-center justify-center text-sm font-medium">2</div>
+                    <span className="text-gray-500">Finalisation</span>
+                  </div>
+                </div>
 
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Lightbulb className="h-6 w-6 text-yellow-500" />
-              <CardTitle>Analyse Patrimoniale Personnalisée</CardTitle>
+              </div>
             </div>
-            <CardDescription>
-              Basée sur vos informations financières et patrimoniales, voici nos recommandations pour optimiser votre
-              situation.
-            </CardDescription>
-          </CardHeader>
-        </Card>
 
-        {isLoading ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center p-6">
-              <div className="h-12 w-12 rounded-full border-4 border-t-blue-600 border-blue-200 animate-spin mb-4"></div>
-              <h3 className="text-lg font-medium mb-2">Chargement des préconisations</h3>
-              <p className="text-center text-muted-foreground">
-                Analyse de votre situation patrimoniale en cours...
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-6">
+            {isLoading ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center p-6">
+                  <div className="h-12 w-12 rounded-full border-4 border-t-blue-600 border-blue-200 animate-spin mb-4"></div>
+                  <h3 className="text-lg font-medium mb-2">Chargement des préconisations</h3>
+                  <p className="text-center text-muted-foreground">
+                    Analyse de votre situation patrimoniale en cours...
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-6">
             {filteredRecommendations.length > 0 ? (
               filteredRecommendations.map((rec) => (
                 <Card key={rec.id} className="relative">
@@ -2655,94 +2997,42 @@ export default function RecommendationsPage() {
                   </p>
                 </CardContent>
               </Card>
-            )}
-          </div>
-        )}
-        
-
-        
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Actions Recommandées</CardTitle>
-            <CardDescription>Étapes suivantes pour optimiser votre patrimoine</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center space-x-4 p-4 border rounded-lg">
-                <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium">
-                  1
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-medium">Prendre rendez-vous avec votre conseiller</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Discuter des recommandations prioritaires et planifier leur mise en œuvre
-                  </p>
-                </div>
-                <Button size="sm">Planifier</Button>
-              </div>
-
-              <div className="flex items-center space-x-4 p-4 border rounded-lg">
-                <div className="w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-sm font-medium">
-                  2
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-medium">Mettre à jour vos informations</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Actualiser vos données patrimoniales pour des recommandations plus précises
-                  </p>
-                </div>
-                <Button size="sm" variant="outline">
-                  Mettre à jour
-                </Button>
-              </div>
-
-              <div className="flex items-center space-x-4 p-4 border rounded-lg">
-                <div className="w-8 h-8 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-sm font-medium">
-                  3
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-medium">Effectuer un suivi régulier</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Programmer des révisions trimestrielles de votre stratégie patrimoniale
-                  </p>
-                </div>
-                <Button size="sm" variant="outline">
-                  Programmer
-                </Button>
-              </div>
+              )}
             </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Volume2 className="h-5 w-5" />
-              Assistant Vocal IA
-            </CardTitle>
-            <CardDescription>
-              Obtenez une explication détaillée de vos préconisations en langage naturel
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">
-                  Notre IA peut vous expliquer chaque recommandation de manière personnalisée et répondre à vos
-                  questions.
+          )}
+            
+            {/* Bouton de navigation en bas */}
+            <div className="sticky bottom-0 bg-background border-t border-border p-4 mt-8">
+              <div className="flex justify-center">
+                <Button 
+                  size="lg"
+                  variant="default" 
+                  onClick={() => setCurrentStep('finalization')}
+                  disabled={selectedPreconisations.length === 0}
+                  className="bg-blue-600 hover:bg-blue-700 px-8 py-3 text-lg"
+                >
+                  <span className="mr-2">➤</span>
+                  Suivant - Finaliser l'analyse
+                </Button>
+              </div>
+              {selectedPreconisations.length === 0 && (
+                <p className="text-center text-sm text-muted-foreground mt-2">
+                  Sélectionnez au moins une préconisation pour continuer
                 </p>
-                <div className="flex items-center gap-2 text-sm text-green-600">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  Assistant vocal disponible
-                </div>
-              </div>
-              <Button size="lg">
-                <Volume2 className="w-4 h-4 mr-2" />
-                Démarrer l'explication
-              </Button>
+              )}
             </div>
-          </CardContent>
-        </Card>
+          </>
+        ) : (
+          // Étape de finalisation
+          <FinalizationStep 
+            selectedPreconisations={selectedPreconisations}
+            filteredRecommendations={filteredRecommendations}
+            customPriorities={customPriorities}
+            exportToPDFRapide={exportToPDFRapide}
+            isExportingFast={isExportingFast}
+            setCurrentStep={setCurrentStep}
+          />
+        )}
       </div>
     </SidebarInset>
   )

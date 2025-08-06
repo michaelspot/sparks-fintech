@@ -48,41 +48,7 @@ export default function FinancialPatrimonyPage() {
       const savedData = localStorage.getItem(LOCAL_STORAGE_KEY)
       if (savedData) return JSON.parse(savedData)
     }
-    return [
-      {
-        id: "1",
-        type: "Assurance-vie",
-        denomination: "Contrat Generali",
-        fullOwnershipValue: 50000,
-        realValue: 52000,
-        ownershipMode: "Pleine propriété",
-        ownershipPercentage: 100,
-        ownedBy: "Vous",
-        performance: 4.2,
-      },
-      {
-        id: "2",
-        type: "PEA",
-        denomination: "PEA Boursorama",
-        fullOwnershipValue: 25000,
-        realValue: 23500,
-        ownershipMode: "Pleine propriété",
-        ownershipPercentage: 100,
-        ownedBy: "Vous",
-        performance: -6.0,
-      },
-      {
-        id: "3",
-        type: "Livret A",
-        denomination: "Livret A BNP",
-        fullOwnershipValue: 15000,
-        realValue: 15000,
-        ownershipMode: "Pleine propriété",
-        ownershipPercentage: 100,
-        ownedBy: "Votre conjoint",
-        performance: 3.0,
-      },
-    ]
+    return []
   })
 
   const saveAssetsToLocalStorage = (updatedAssets: FinancialAsset[]) => {

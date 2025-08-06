@@ -66,29 +66,7 @@ export default function RevenuesPage() {
       const savedData = localStorage.getItem(LOCAL_STORAGE_KEY)
       if (savedData) return JSON.parse(savedData)
     }
-    return [
-      {
-        id: "1",
-        type: "Loyers (hors charges)",
-        denomination: "Loyer appartement principal",
-        amount: 1200,
-        ownedBy: "Vous",
-      },
-      {
-        id: "2",
-        type: "Échéances - Crédits immobiliers",
-        denomination: "Crédit résidence principale",
-        amount: 800,
-        ownedBy: "Commun",
-      },
-      {
-        id: "3",
-        type: "Impôts sur le Revenu",
-        denomination: "Impôts sur le Revenu",
-        amount: 450,
-        ownedBy: "Votre conjoint",
-      },
-    ]
+    return []
   })
 
   const saveExpensesToLocalStorage = (updatedExpenses: Expense[]) => {

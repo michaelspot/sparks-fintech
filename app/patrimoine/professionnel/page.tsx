@@ -47,28 +47,7 @@ export default function ProfessionalPatrimonyPage() {
       const savedData = localStorage.getItem(LOCAL_STORAGE_KEY)
       if (savedData) return JSON.parse(savedData)
     }
-    return [
-      {
-        id: "1",
-        companyName: "Tech Corp SARL",
-        activity: "Développement logiciel",
-        shareOwnership: "Gérant majoritaire",
-        ownershipPercentage: 75,
-        willToTransfer: "Oui",
-        ownership: "Vous",
-        valuation: 150000,
-      },
-      {
-        id: "2",
-        companyName: "Consulting Partners",
-        activity: "Conseil en management",
-        shareOwnership: "Associé",
-        ownershipPercentage: 25,
-        willToTransfer: "Non",
-        ownership: "Vous",
-        valuation: 50000,
-      },
-    ]
+    return []
   })
 
   const saveAssetsToLocalStorage = (updatedAssets: ProfessionalAsset[]) => {

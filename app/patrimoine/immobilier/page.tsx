@@ -56,27 +56,7 @@ export default function RealEstatePage() {
       const savedData = localStorage.getItem(LOCAL_STORAGE_KEY)
       if (savedData) return JSON.parse(savedData)
     }
-    return [
-      {
-        id: "1",
-        type: "Résidence principale",
-        denomination: "RP",
-        postalCode: "92140",
-        city: "Saint-Médard-en-Jalles",
-        surface: 100,
-        pricePerSqm: 3000,
-        fullOwnershipValue: 300000,
-        evolutionPercentage: 5.5,
-        ownershipMode: "Pleine propriété",
-        ownershipPercentage: 100,
-        ownedBy: "Vous",
-        dpe: "C",
-        ges: "B",
-        grossValue: 300000,
-        attachedDebts: 0,
-        netValue: 300000,
-      },
-    ]
+    return []
   })
 
   const savePropertiesToLocalStorage = (updatedProperties: Property[]) => {

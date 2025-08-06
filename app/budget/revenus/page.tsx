@@ -85,33 +85,7 @@ export default function RevenuesPage() {
       const savedData = localStorage.getItem(LOCAL_STORAGE_KEY)
       if (savedData) return JSON.parse(savedData)
     }
-    return [
-      {
-        id: "1",
-        type: "Salaires",
-        denomination: "Salaire Principal",
-        amount: 35000,
-        ownedBy: "Vous",
-        fiscalRegime: "Aucun régime (déduction automatique de 10%)",
-      },
-      {
-        id: "2",
-        type: "Revenus fonciers",
-        denomination: "Location Appartement Paris",
-        amount: 12000,
-        ownedBy: "Commun",
-        fiscalRegime: "Micro-foncier",
-      },
-      {
-        id: "3",
-        type: "Revenus non commerciaux",
-        denomination: "Consulting Freelance",
-        amount: 5000,
-        ownedBy: "Votre conjoint",
-        fiscalRegime: "Micro-BNC",
-        deductibleExpenses: 500,
-      },
-    ]
+    return []
   })
 
   const saveIncomesToLocalStorage = (updatedIncomes: Income[]) => {

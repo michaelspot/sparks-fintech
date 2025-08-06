@@ -141,33 +141,46 @@ export default function ObjectivesPage() {
           <CardContent className="space-y-6">
             <div>
               <Label className="text-base font-medium">Objectifs ({selectedObjectivesCount} sélectionné(s))</Label>
-              <ScrollArea className="h-72 w-full rounded-md border mt-2">
-                <div className="p-4 space-y-4">
-                  {allObjectives.map((obj) => (
-                    <div key={obj} className="flex items-center space-x-4">
-                      <div className="flex items-center space-x-2 flex-grow">
-                        <Checkbox
-                          id={obj}
-                          checked={objectives[obj].selected}
-                          onCheckedChange={() => handleObjectiveChange(obj)}
-                        />
-                        <Label htmlFor={obj} className="font-normal flex-1 cursor-pointer">
-                          {obj}
-                        </Label>
-                      </div>
-                      {objectives[obj].selected && (
-                        <div className="flex items-center space-x-2 w-32">
+              <ScrollArea className="h-96 w-full rounded-md border mt-2">
+                <div className="p-4">
+                  {/* En-tête avec colonnes */}
+                  <div className="flex items-center space-x-4 mb-4 pb-2 border-b">
+                    <div className="flex-grow">
+                      <Label className="text-sm font-medium text-muted-foreground">Objectif</Label>
+                    </div>
+                    <div className="w-32">
+                      <Label className="text-sm font-medium text-muted-foreground">Horizon (ans)</Label>
+                    </div>
+                  </div>
+                  
+                  {/* Liste des objectifs */}
+                  <div className="space-y-3">
+                    {allObjectives.map((obj) => (
+                      <div key={obj} className="flex items-start space-x-4 min-h-[32px]">
+                        <div className="flex items-start space-x-2 flex-grow">
+                          <Checkbox
+                            id={obj}
+                            checked={objectives[obj].selected}
+                            onCheckedChange={() => handleObjectiveChange(obj)}
+                            className="mt-0.5"
+                          />
+                          <Label htmlFor={obj} className="font-normal flex-1 cursor-pointer leading-relaxed">
+                            {obj}
+                          </Label>
+                        </div>
+                        <div className="w-32 flex justify-center">
                           <Input
                             type="number"
-                            placeholder="ans"
+                            placeholder={objectives[obj].selected ? "" : ""}
                             value={objectives[obj].horizon}
                             onChange={(e) => handleHorizonChange(obj, e.target.value)}
-                            className="h-8 text-sm"
+                            className="h-8 text-sm w-20 text-center"
+                            disabled={!objectives[obj].selected}
                           />
                         </div>
-                      )}
-                    </div>
-                  ))}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </ScrollArea>
             </div>
