@@ -137,6 +137,8 @@ export default function FinancialPatrimonyPage() {
     },
   ]
 
+  const blueColors = ["#2563eb", "#3b82f6", "#60a5fa", "#93c5fd", "#dbeafe"]
+  
   const typeData = [
     {
       name: "Assurance-vie",
@@ -162,13 +164,12 @@ export default function FinancialPatrimonyPage() {
       name: "SCPI",
       value: assets.filter((a) => a.type === "SCPI").reduce((sum, a) => sum + a.realValue, 0),
     },
-  ].filter((item) => item.value > 0)
-
-  // Assigne les couleurs dynamiquement
-  const blueColors = ["#2563eb", "#3b82f6", "#60a5fa", "#93c5fd", "#dbeafe"]
-  typeData.forEach((item, index) => {
-    ;(item as any).fill = blueColors[Math.min(index, blueColors.length - 1)]
-  })
+  ]
+    .filter((item) => item.value > 0)
+    .map((item, index) => ({
+      ...item,
+      fill: blueColors[Math.min(index, blueColors.length - 1)]
+    }))
 
   return (
     <SidebarInset>
@@ -205,7 +206,7 @@ export default function FinancialPatrimonyPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="type">Type d'actif</Label>
-                    <Select value={newAsset.type} onValueChange={(value) => setNewAsset({ ...newAsset, type: value })}>
+                    <Select value={newAsset.type || ""} onValueChange={(value) => setNewAsset({ ...newAsset, type: value })}>
                       <SelectTrigger>
                         <SelectValue placeholder="Sélectionner un type..." />
                       </SelectTrigger>
@@ -259,7 +260,7 @@ export default function FinancialPatrimonyPage() {
                   <div className="space-y-2">
                     <Label htmlFor="ownedBy">Détenu par</Label>
                     <Select
-                      value={newAsset.ownedBy}
+                      value={newAsset.ownedBy || ""}
                       onValueChange={(value) => setNewAsset({ ...newAsset, ownedBy: value })}
                     >
                       <SelectTrigger>

@@ -80,13 +80,21 @@ const deductibleExpensesEnabledRegimes = [
 const LOCAL_STORAGE_KEY = "budgetRevenusInfo"
 
 export default function RevenuesPage() {
-  const [incomes, setIncomes] = useState<Income[]>(() => {
-    if (typeof window !== "undefined") {
-      const savedData = localStorage.getItem(LOCAL_STORAGE_KEY)
-      if (savedData) return JSON.parse(savedData)
+  const [incomes, setIncomes] = useState<Income[]>([])
+  const [isClient, setIsClient] = useState(false)
+
+  // Initialize from localStorage only on client side
+  useEffect(() => {
+    setIsClient(true)
+    const savedData = localStorage.getItem(LOCAL_STORAGE_KEY)
+    if (savedData) {
+      try {
+        setIncomes(JSON.parse(savedData))
+      } catch (error) {
+        console.error('Error parsing saved income data:', error)
+      }
     }
-    return []
-  })
+  }, [])
 
   const saveIncomesToLocalStorage = (updatedIncomes: Income[]) => {
     if (typeof window !== "undefined") {
@@ -229,7 +237,7 @@ export default function RevenuesPage() {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
       <div className="space-y-2">
         <Label htmlFor="type">Type de revenu</Label>
-        <Select value={currentIncome.type} onValueChange={(value) => handleInputChange("type", value)}>
+        <Select value={currentIncome.type || ""} onValueChange={(value) => handleInputChange("type", value)}>
           <SelectTrigger id="type">
             <SelectValue placeholder="Sélectionner un type..." />
           </SelectTrigger>
@@ -263,7 +271,7 @@ export default function RevenuesPage() {
       </div>
       <div className="space-y-2">
         <Label htmlFor="ownedBy">Détention</Label>
-        <Select value={currentIncome.ownedBy} onValueChange={(value) => handleInputChange("ownedBy", value)}>
+        <Select value={currentIncome.ownedBy || ""} onValueChange={(value) => handleInputChange("ownedBy", value)}>
           <SelectTrigger id="ownedBy">
             <SelectValue placeholder="Sélectionner détenteur..." />
           </SelectTrigger>
@@ -278,7 +286,7 @@ export default function RevenuesPage() {
         <div className="space-y-2">
           <Label htmlFor="fiscalRegime">Régime fiscal</Label>
           <Select
-            value={currentIncome.fiscalRegime}
+            value={currentIncome.fiscalRegime || ""}
             onValueChange={(value) => handleInputChange("fiscalRegime", value)}
           >
             <SelectTrigger id="fiscalRegime">
@@ -361,7 +369,11 @@ export default function RevenuesPage() {
       </header>
 
       <div className="flex flex-1 flex-col gap-6 p-4 pt-0">
-        {incomes.length === 0 ? (
+        {!isClient ? (
+          <div className="flex flex-1 items-center justify-center">
+            <div className="animate-pulse">Chargement...</div>
+          </div>
+        ) : incomes.length === 0 ? (
           <div className="flex flex-1 items-center justify-center">
             <div className="flex flex-col items-center gap-4 text-center">
               <DollarSign className="h-12 w-12 text-muted-foreground" />
@@ -394,9 +406,9 @@ export default function RevenuesPage() {
                             <span className="font-medium">{item.name}</span>
                           </div>
                           <div className="flex items-center space-x-4">
-                            <span className="font-semibold">{item.value.toLocaleString("fr-FR")} €</span>
+                            <span className="font-semibold">{(item.value || 0).toLocaleString("fr-FR")} €</span>
                             <span className="text-sm text-muted-foreground min-w-[40px] text-right">
-                              {totalNetAmount > 0 ? ((item.value / totalNetAmount) * 100).toFixed(1) : 0}%
+                              {totalNetAmount > 0 ? (((item.value || 0) / totalNetAmount) * 100).toFixed(1) : 0}%
                             </span>
                           </div>
                         </div>
@@ -429,7 +441,7 @@ export default function RevenuesPage() {
                               <Cell key={`cell-${index}`} fill={entry.fill} />
                             ))}
                           </Pie>
-                          <Tooltip formatter={(value: number) => `${value.toLocaleString("fr-FR")} €`} />
+                          <Tooltip formatter={(value: number) => `${(value || 0).toLocaleString("fr-FR")} €`} />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
@@ -440,7 +452,7 @@ export default function RevenuesPage() {
                             <div className={`w-2.5 h-2.5 rounded-full`} style={{ backgroundColor: item.fill }}></div>
                             <span>{item.name}</span>
                           </div>
-                          <span className="font-medium">{item.value.toLocaleString("fr-FR")} €</span>
+                          <span className="font-medium">{(item.value || 0).toLocaleString("fr-FR")} €</span>
                         </div>
                       ))}
                     </div>

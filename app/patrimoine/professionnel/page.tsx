@@ -63,7 +63,7 @@ export default function ProfessionalPatrimonyPage() {
   const [editingAsset, setEditingAsset] = useState<ProfessionalAsset | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 
-  const totalValuation = assets.reduce((sum, asset) => sum + asset.valuation, 0)
+  const totalValuation = assets.reduce((sum, asset) => sum + (asset.valuation || 0), 0)
 
   const handleAddAsset = () => {
     if (newAsset.companyName && newAsset.activity) {
@@ -119,17 +119,17 @@ export default function ProfessionalPatrimonyPage() {
   const ownershipData = [
     {
       name: "Vous",
-      value: assets.filter((a) => a.ownership === "Vous").reduce((sum, a) => sum + a.valuation, 0),
+      value: assets.filter((a) => a.ownership === "Vous").reduce((sum, a) => sum + (a.valuation || 0), 0),
       fill: "#3b82f6", // blue-500
     },
     {
       name: "Votre conjoint",
-      value: assets.filter((a) => a.ownership === "Votre conjoint").reduce((sum, a) => sum + a.valuation, 0),
+      value: assets.filter((a) => a.ownership === "Votre conjoint").reduce((sum, a) => sum + (a.valuation || 0), 0),
       fill: "#60a5fa", // blue-400
     },
     {
       name: "Commun",
-      value: assets.filter((a) => a.ownership === "Commun").reduce((sum, a) => sum + a.valuation, 0),
+      value: assets.filter((a) => a.ownership === "Commun").reduce((sum, a) => sum + (a.valuation || 0), 0),
       fill: "#93c5fd", // blue-300
     },
   ]
@@ -137,31 +137,31 @@ export default function ProfessionalPatrimonyPage() {
   const activityData = [
     {
       name: "Développement logiciel",
-      value: assets.filter((a) => a.activity === "Développement logiciel").reduce((sum, a) => sum + a.valuation, 0),
+      value: assets.filter((a) => a.activity === "Développement logiciel").reduce((sum, a) => sum + (a.valuation || 0), 0),
     },
     {
       name: "Conseil en management",
-      value: assets.filter((a) => a.activity === "Conseil en management").reduce((sum, a) => sum + a.valuation, 0),
+      value: assets.filter((a) => a.activity === "Conseil en management").reduce((sum, a) => sum + (a.valuation || 0), 0),
     },
     {
       name: "Commerce",
-      value: assets.filter((a) => a.activity === "Commerce").reduce((sum, a) => sum + a.valuation, 0),
+      value: assets.filter((a) => a.activity === "Commerce").reduce((sum, a) => sum + (a.valuation || 0), 0),
     },
     {
       name: "Services",
-      value: assets.filter((a) => a.activity === "Services").reduce((sum, a) => sum + a.valuation, 0),
+      value: assets.filter((a) => a.activity === "Services").reduce((sum, a) => sum + (a.valuation || 0), 0),
     },
     {
       name: "Industrie",
-      value: assets.filter((a) => a.activity === "Industrie").reduce((sum, a) => sum + a.valuation, 0),
+      value: assets.filter((a) => a.activity === "Industrie").reduce((sum, a) => sum + (a.valuation || 0), 0),
     },
     {
       name: "BTP",
-      value: assets.filter((a) => a.activity === "BTP").reduce((sum, a) => sum + a.valuation, 0),
+      value: assets.filter((a) => a.activity === "BTP").reduce((sum, a) => sum + (a.valuation || 0), 0),
     },
     {
       name: "Restauration",
-      value: assets.filter((a) => a.activity === "Restauration").reduce((sum, a) => sum + a.valuation, 0),
+      value: assets.filter((a) => a.activity === "Restauration").reduce((sum, a) => sum + (a.valuation || 0), 0),
     },
   ].filter((item) => item.value > 0)
 
@@ -552,7 +552,7 @@ export default function ProfessionalPatrimonyPage() {
                         <CardTitle className="text-lg">{asset.companyName}</CardTitle>
                         <CardDescription>
                           {asset.activity} • {asset.shareOwnership} ({asset.ownershipPercentage}%) •{" "}
-                          {asset.valuation.toLocaleString("fr-FR")} € • {asset.ownership}
+                          {(asset.valuation || 0).toLocaleString("fr-FR")} € • {asset.ownership}
                         </CardDescription>
                       </div>
                       <div className="flex items-center space-x-4">

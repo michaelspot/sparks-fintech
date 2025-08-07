@@ -51,130 +51,86 @@ interface SimulationItem {
 
 // Composant pour l'étape de finalisation
 function FinalizationStep({ selectedPreconisations, filteredRecommendations, customPriorities, exportToPDFRapide, isExportingFast, setCurrentStep }: FinalizationStepProps) {
-  // État pour gérer la sélection des sections du plan d'étude
-  const [studyPlanSections, setStudyPlanSections] = useState<StudyPlanSection[]>([
-    {
-      id: 'informations-client',
-      title: 'Informations Client',
-      description: 'État civil, coordonnées et situation personnelle',
-      included: true
-    },
-    {
-      id: 'informations-conjoint',
-      title: 'Informations Conjoint',
-      description: 'Données du conjoint et situation familiale',
-      included: true
-    },
-    {
-      id: 'situation-familiale',
-      title: 'Situation Familiale',
-      description: 'Régime matrimonial, enfants et liens familiaux',
-      included: true
-    },
-    {
-      id: 'situation-professionnelle',
-      title: 'Situation Professionnelle',
-      description: 'Activité, revenus et évolution de carrière',
-      included: true
-    },
-    {
-      id: 'situation-patrimoniale',
-      title: 'Situation Patrimoniale',
-      description: 'Bilan détaillé des actifs et passifs',
-      included: true
-    },
-    {
-      id: 'analyse-revenus-charges',
-      title: 'Analyse Revenus et Charges',
-      description: 'Flux financiers et capacité d\'épargne',
-      included: true
-    },
-    {
-      id: 'objectifs-patrimoniaux',
-      title: 'Objectifs Patrimoniaux',
-      description: 'Projets et stratégie patrimoniale',
-      included: true
-    },
-    {
-      id: 'preconisations-patrimoniales',
-      title: 'Préconisations Patrimoniales',
-      description: 'Recommandations personnalisées sélectionnées',
-      included: true
-    },
-    {
-      id: 'planning-mise-oeuvre',
-      title: 'Planning de Mise en Œuvre',
-      description: 'Échéancier et étapes de réalisation',
-      included: true
-    },
-    {
-      id: 'annexes-documents',
-      title: 'Annexes et Documents',
-      description: 'Pièces justificatives et références',
-      included: false
-    }
-  ]);
-
-  // État pour gérer les simulations disponibles
-  const [availableSimulations, setAvailableSimulations] = useState<SimulationItem[]>([
-    {
-      id: 'simulation-fiscale',
-      title: 'Optimisation Fiscale',
-      description: 'Calculs d\'optimisation de l\'imposition et des niches fiscales',
-      type: 'fiscalite',
-      status: 'calculee',
-      included: false,
-      lastCalculated: new Date(),
-      resultSummary: 'Économie fiscale potentielle : 2 400€/an'
-    },
-    {
-      id: 'simulation-investissement',
-      title: 'Projection d\'Investissement',
-      description: 'Simulation de rendements et scénarios d\'investissement',
-      type: 'investissement',
-      status: 'calculee',
-      included: false,
-      lastCalculated: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-      resultSummary: 'Rendement projeté : 6,2%/an sur 15 ans'
-    },
-    {
-      id: 'simulation-retraite',
-      title: 'Projection Retraite',
-      description: 'Estimation des revenus et besoins à la retraite',
-      type: 'retraite',
-      status: 'calculee',
-      included: false,
-      lastCalculated: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-      resultSummary: 'Besoin complément retraite : 1 200€/mois'
-    },
-    {
-      id: 'simulation-emprunt',
-      title: 'Capacité d\'Emprunt',
-      description: 'Analyse de la capacité d\'endettement et optimisation crédit',
-      type: 'emprunt',
-      status: 'disponible',
-      included: false
-    },
-    {
-      id: 'simulation-transmission',
-      title: 'Transmission Patrimoniale',
-      description: 'Simulation des droits de succession et stratégies de transmission',
-      type: 'transmission',
-      status: 'non_calculee',
-      included: false
-    }
-  ]);
-
-  // Fonction pour basculer l'inclusion d'une section
-  const toggleSectionInclusion = (sectionId: string) => {
-    setStudyPlanSections(prev => 
-      prev.map(section => 
-        section.id === sectionId 
-          ? { ...section, included: !section.included }
-          : section
-      )
-    );
+  
+  // Fonction pour vérifier le statut des simulations basé sur localStorage
+  const getSimulationStatus = (): SimulationItem[] => {
+    const fiscaliteData = localStorage.getItem('fiscaliteIRInfo');
+    const budgetRevenusData = localStorage.getItem('budgetRevenusInfo');
+    const budgetChargesData = localStorage.getItem('budgetChargesInfo');
+    const patrimoineImmoData = localStorage.getItem('patrimoineImmobilierInfo');
+    const patrimoineFinData = localStorage.getItem('patrimoineFinancierInfo');
+    const patrimoineProfData = localStorage.getItem('patrimoineProfessionnelInfo');
+    const objectifsData = localStorage.getItem('identityObjectifsInfo');
+    
+    const hasFiscalData = fiscaliteData && JSON.parse(fiscaliteData);
+    const hasRevenusData = budgetRevenusData && JSON.parse(budgetRevenusData)?.length > 0;
+    const hasChargesData = budgetChargesData && JSON.parse(budgetChargesData)?.length > 0;
+    const hasPatrimoineData = (patrimoineImmoData && JSON.parse(patrimoineImmoData)?.length > 0) || 
+                            (patrimoineFinData && JSON.parse(patrimoineFinData)?.length > 0) ||
+                            (patrimoineProfData && JSON.parse(patrimoineProfData)?.length > 0);
+    const hasObjectifsData = objectifsData && JSON.parse(objectifsData)?.objectives;
+    
+    return [
+      {
+        id: 'simulation-fiscale',
+        title: 'Optimisation Fiscale',
+        description: 'Calculs d\'optimisation de l\'imposition et des niches fiscales',
+        type: 'fiscalite' as const,
+        status: hasFiscalData && hasRevenusData ? 'calculee' : 'non_calculee',
+        included: false,
+        lastCalculated: hasFiscalData ? new Date() : undefined,
+        resultSummary: hasFiscalData && hasRevenusData ? 'Données fiscales disponibles pour analyse' : undefined
+      },
+      {
+        id: 'simulation-investissement',
+        title: 'Projection d\'Investissement',
+        description: 'Simulation de rendements et scénarios d\'investissement',
+        type: 'investissement' as const,
+        status: hasPatrimoineData && hasRevenusData ? 'calculee' : 'non_calculee',
+        included: false,
+        lastCalculated: hasPatrimoineData ? new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) : undefined,
+        resultSummary: hasPatrimoineData ? 'Données patrimoniales disponibles pour projection' : undefined
+      },
+      {
+        id: 'simulation-retraite',
+        title: 'Projection Retraite',
+        description: 'Estimation des revenus et besoins à la retraite',
+        type: 'retraite' as const,
+        status: hasRevenusData && hasChargesData ? 'calculee' : 'non_calculee',
+        included: false,
+        lastCalculated: hasRevenusData ? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) : undefined,
+        resultSummary: hasRevenusData && hasChargesData ? 'Budget disponible pour analyse retraite' : undefined
+      },
+      {
+        id: 'simulation-emprunt',
+        title: 'Capacité d\'Emprunt',
+        description: 'Analyse de la capacité d\'endettement et optimisation crédit',
+        type: 'emprunt' as const,
+        status: hasRevenusData && hasChargesData ? 'calculee' : 'disponible',
+        included: false,
+        resultSummary: hasRevenusData && hasChargesData ? 'Revenus et charges disponibles pour calcul' : undefined
+      },
+      {
+        id: 'simulation-transmission',
+        title: 'Transmission Patrimoniale',
+        description: 'Simulation des droits de succession et stratégies de transmission',
+        type: 'transmission' as const,
+        status: hasPatrimoineData ? 'calculee' : 'non_calculee',
+        included: false,
+        resultSummary: hasPatrimoineData ? 'Patrimoine disponible pour analyse transmission' : undefined
+      }
+    ];
   };
+
+  // État pour gérer les simulations disponibles basé sur les données réelles
+  const [availableSimulations, setAvailableSimulations] = useState<SimulationItem[]>(() => getSimulationStatus());
+  
+  // Mettre à jour les simulations à l'initialisation
+  useEffect(() => {
+    setAvailableSimulations(getSimulationStatus());
+  }, []);
+
+
 
   // Fonction pour basculer l'inclusion d'une simulation
   const toggleSimulationInclusion = (simulationId: string) => {
@@ -226,66 +182,7 @@ function FinalizationStep({ selectedPreconisations, filteredRecommendations, cus
 
 
 
-      {/* Plan de l'étude */}
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            Plan de l'étude
-          </CardTitle>
-          <CardDescription>
-            Sélectionnez les sections que vous souhaitez inclure dans votre rapport final.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {studyPlanSections.map((section) => (
-              <div 
-                key={section.id} 
-                className={`flex items-center gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${
-                  section.included ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'
-                }`}
-                onClick={() => toggleSectionInclusion(section.id)}
-              >
-                <div className="flex-shrink-0">
-                  {section.included ? (
-                    <Eye className="h-5 w-5 text-blue-600" />
-                  ) : (
-                    <EyeOff className="h-5 w-5 text-gray-400" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <h4 className={`font-medium ${
-                    section.included ? 'text-blue-900' : 'text-gray-600'
-                  }`}>
-                    {section.title}
-                  </h4>
-                  <p className={`text-sm ${
-                    section.included ? 'text-blue-700' : 'text-gray-500'
-                  }`}>
-                    {section.description}
-                  </p>
-                </div>
-                <div className="flex-shrink-0">
-                  <div className={`w-4 h-4 rounded border-2 ${
-                    section.included 
-                      ? 'bg-blue-600 border-blue-600' 
-                      : 'border-gray-300'
-                  }`}>
-                    {section.included && (
-                      <Check className="w-3 h-3 text-white" />
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-700">
-              <strong>Sections incluses :</strong> {studyPlanSections.filter(s => s.included).length} sur {studyPlanSections.length}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+
 
       {/* Simulateurs */}
       <Card>
@@ -398,6 +295,34 @@ function FinalizationStep({ selectedPreconisations, filteredRecommendations, cus
                 ⚠️ Certaines simulations sélectionnées n'ont pas encore été calculées.
               </p>
             )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Prise de rendez-vous avec conseiller */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <HeartHandshake className="h-5 w-5 text-blue-600" />
+            Prendre rendez-vous avec un conseiller
+          </CardTitle>
+          <CardDescription>
+            Discutez de vos préconisations avec un expert pour envisager les prochaines étapes
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground mb-4">
+              Nos conseillers en gestion de patrimoine sont disponibles pour vous accompagner dans la mise en œuvre de vos préconisations.
+            </p>
+            <Button 
+              size="lg"
+              variant="outline" 
+              onClick={() => window.open('https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ0zGiDK2sf_tmhqyWjBUyukxfypfypP33v7ZkEg14Bff9hgNDRqVXoorQEbf_kNBqqea_U2fwYs', '_blank')}
+              className="bg-blue-50 border-blue-200 hover:bg-blue-100 text-blue-700 px-8 py-3 text-lg"
+            >
+              📅 Réserver un créneau
+            </Button>
           </div>
         </CardContent>
       </Card>
