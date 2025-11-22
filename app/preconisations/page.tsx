@@ -187,13 +187,9 @@ function FinalizationStep({ selectedPreconisations, filteredRecommendations, cus
       {/* Simulateurs */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calculator className="h-5 w-5 text-purple-600" />
+          <CardTitle>
             Simulateurs
           </CardTitle>
-          <CardDescription>
-            Sélectionnez les calculs et simulations à intégrer dans votre rapport d'analyse.
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
@@ -233,19 +229,19 @@ function FinalizationStep({ selectedPreconisations, filteredRecommendations, cus
                 <div 
                   key={simulation.id} 
                   className={`flex items-start gap-4 p-4 border rounded-lg cursor-pointer transition-colors ${
-                    simulation.included ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-gray-200'
+                    simulation.included ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'
                   }`}
                   onClick={() => toggleSimulationInclusion(simulation.id)}
                 >
                   <div className="flex-shrink-0">
                     <SimulationIcon className={`h-5 w-5 ${
-                      simulation.included ? 'text-purple-600' : 'text-gray-400'
+                      simulation.included ? 'text-blue-600' : 'text-gray-400'
                     }`} />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <h4 className={`font-medium ${
-                        simulation.included ? 'text-purple-900' : 'text-gray-600'
+                        simulation.included ? 'text-blue-900' : 'text-gray-600'
                       }`}>
                         {simulation.title}
                       </h4>
@@ -256,7 +252,7 @@ function FinalizationStep({ selectedPreconisations, filteredRecommendations, cus
                       </div>
                     </div>
                     <p className={`text-sm ${
-                      simulation.included ? 'text-purple-700' : 'text-gray-500'
+                      simulation.included ? 'text-blue-700' : 'text-gray-500'
                     }`}>
                       {simulation.description}
                     </p>
@@ -274,7 +270,7 @@ function FinalizationStep({ selectedPreconisations, filteredRecommendations, cus
                   <div className="flex-shrink-0">
                     <div className={`w-4 h-4 rounded border-2 ${
                       simulation.included 
-                        ? 'bg-purple-600 border-purple-600' 
+                        ? 'bg-blue-600 border-blue-600' 
                         : 'border-gray-300'
                     }`}>
                       {simulation.included && (
@@ -286,49 +282,19 @@ function FinalizationStep({ selectedPreconisations, filteredRecommendations, cus
               );
             })}
           </div>
-          <div className="mt-4 p-3 bg-purple-50 rounded-lg">
-            <p className="text-sm text-purple-700">
+          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+            <p className="text-sm text-blue-700">
               <strong>Simulations incluses :</strong> {availableSimulations.filter(s => s.included).length} sur {availableSimulations.length}
             </p>
-            {availableSimulations.filter(s => s.included && s.status !== 'calculee').length > 0 && (
-              <p className="text-xs text-orange-600 mt-1">
-                ⚠️ Certaines simulations sélectionnées n'ont pas encore été calculées.
-              </p>
-            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Prise de rendez-vous avec conseiller */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <HeartHandshake className="h-5 w-5 text-blue-600" />
-            Prendre rendez-vous avec un conseiller
-          </CardTitle>
-          <CardDescription>
-            Discutez de vos préconisations avec un expert pour envisager les prochaines étapes
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground mb-4">
-              Nos conseillers en gestion de patrimoine sont disponibles pour vous accompagner dans la mise en œuvre de vos préconisations.
-            </p>
-            <Button 
-              size="lg"
-              variant="outline" 
-              onClick={() => window.open('https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ0zGiDK2sf_tmhqyWjBUyukxfypfypP33v7ZkEg14Bff9hgNDRqVXoorQEbf_kNBqqea_U2fwYs', '_blank')}
-              className="bg-blue-50 border-blue-200 hover:bg-blue-100 text-blue-700 px-8 py-3 text-lg"
-            >
-              📅 Réserver un créneau
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Padding pour éviter que le contenu soit caché par la barre fixe */}
+      <div className="pb-20"></div>
 
       {/* Boutons de navigation en bas */}
-      <div className="sticky bottom-0 bg-background border-t border-border p-4 mt-8">
+      <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border p-4 z-50">
         <div className="flex justify-center gap-4">
           <Button 
             size="lg"
@@ -2806,7 +2772,7 @@ export default function RecommendationsPage() {
               filteredRecommendations.map((rec) => (
                 <Card key={rec.id} className="relative">
                   <CardHeader>
-                    <div className="flex items-start justify-between">
+                    <div className="grid grid-cols-[1fr,auto] gap-4 items-start">
                       <div className="flex items-center gap-3">
                         <div className={`p-2 rounded-lg bg-muted ${rec.color}`}>
                           {rec.icon && <rec.icon className="h-5 w-5" />}
@@ -2831,86 +2797,81 @@ export default function RecommendationsPage() {
                               Priorité {customPriorities[rec.id] || rec.priority}
                             </div>
                           </div>
+                          <p className="text-muted-foreground mt-2 text-sm">{rec.description}</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-sm font-medium text-green-600">{rec.impact}</div>
+                      <div className="flex flex-col justify-between items-end h-full min-h-[80px]">
+                        <Button 
+                          size="sm" 
+                          variant={selectedPreconisations.includes(rec.id) ? "secondary" : "default"}
+                          className={selectedPreconisations.includes(rec.id) ? "gap-2" : ""}
+                          onClick={() => toggleSelectedPreconisation(rec.id)}
+                        >
+                          {selectedPreconisations.includes(rec.id) ? (
+                            <>
+                              <Check className="w-4 h-4" />
+                              Ajoutée au rapport
+                            </>
+                          ) : "Ajouter au rapport"}
+                        </Button>
+                        <Dialog open={dialogOpen && selectedRecommendation === rec.id} onOpenChange={(open) => {
+                          setDialogOpen(open);
+                          if (!open) setSelectedRecommendation(null);
+                        }}>
+                          <DialogTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => setSelectedRecommendation(rec.id)}
+                            >
+                              Plus de détails
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle>{rec.title}</DialogTitle>
+                              <DialogDescription>{rec.description}</DialogDescription>
+                            </DialogHeader>
+                            
+                            <Tabs defaultValue="avantages">
+                              <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="avantages">Avantages</TabsTrigger>
+                                <TabsTrigger value="inconvenients">Inconvénients</TabsTrigger>
+                              </TabsList>
+                              <TabsContent value="avantages" className="mt-4 space-y-2">
+                                {rec.advantages?.length ? (
+                                  <ul className="list-disc pl-5 space-y-2">
+                                    {rec.advantages.map((advantage, idx) => (
+                                      <li key={idx}>{advantage}</li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <p className="text-muted-foreground">Aucun avantage spécifié</p>
+                                )}
+                              </TabsContent>
+                              <TabsContent value="inconvenients" className="mt-4 space-y-2">
+                                {rec.disadvantages?.length ? (
+                                  <ul className="list-disc pl-5 space-y-2">
+                                    {rec.disadvantages.map((disadvantage, idx) => (
+                                      <li key={idx}>{disadvantage}</li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <p className="text-muted-foreground">Aucun inconvénient spécifié</p>
+                                )}
+                              </TabsContent>
+                            </Tabs>
+                            
+                            <div className="flex justify-end mt-6">
+                              <Button>
+                                Appliquer cette préconisation
+                              </Button>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground mb-4">{rec.description}</p>
-                    <div className="flex justify-end space-x-2">
-                      <Dialog open={dialogOpen && selectedRecommendation === rec.id} onOpenChange={(open) => {
-                        setDialogOpen(open);
-                        if (!open) setSelectedRecommendation(null);
-                      }}>
-                        <DialogTrigger asChild>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => setSelectedRecommendation(rec.id)}
-                          >
-                            Plus de détails
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl">
-                          <DialogHeader>
-                            <DialogTitle>{rec.title}</DialogTitle>
-                            <DialogDescription>{rec.description}</DialogDescription>
-                          </DialogHeader>
-                          
-                          <Tabs defaultValue="avantages">
-                            <TabsList className="grid w-full grid-cols-2">
-                              <TabsTrigger value="avantages">Avantages</TabsTrigger>
-                              <TabsTrigger value="inconvenients">Inconvénients</TabsTrigger>
-                            </TabsList>
-                            <TabsContent value="avantages" className="mt-4 space-y-2">
-                              {rec.advantages?.length ? (
-                                <ul className="list-disc pl-5 space-y-2">
-                                  {rec.advantages.map((advantage, idx) => (
-                                    <li key={idx}>{advantage}</li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <p className="text-muted-foreground">Aucun avantage spécifié</p>
-                              )}
-                            </TabsContent>
-                            <TabsContent value="inconvenients" className="mt-4 space-y-2">
-                              {rec.disadvantages?.length ? (
-                                <ul className="list-disc pl-5 space-y-2">
-                                  {rec.disadvantages.map((disadvantage, idx) => (
-                                    <li key={idx}>{disadvantage}</li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <p className="text-muted-foreground">Aucun inconvénient spécifié</p>
-                              )}
-                            </TabsContent>
-                          </Tabs>
-                          
-                          <div className="flex justify-end mt-6">
-                            <Button>
-                              Appliquer cette préconisation
-                            </Button>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                      <Button 
-                        size="sm" 
-                        variant={selectedPreconisations.includes(rec.id) ? "secondary" : "default"}
-                        className={selectedPreconisations.includes(rec.id) ? "gap-2" : ""}
-                        onClick={() => toggleSelectedPreconisation(rec.id)}
-                      >
-                        {selectedPreconisations.includes(rec.id) ? (
-                          <>
-                            <Check className="w-4 h-4" />
-                            Ajoutée au rapport
-                          </>
-                        ) : "Ajouter au rapport"}
-                      </Button>
-                    </div>
-                  </CardContent>
                 </Card>
               ))
             ) : (
@@ -2927,7 +2888,7 @@ export default function RecommendationsPage() {
           )}
             
             {/* Bouton de navigation en bas */}
-            <div className="sticky bottom-0 bg-background border-t border-border p-4 mt-8">
+            <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border p-4 z-50">
               <div className="flex justify-center">
                 <Button 
                   size="lg"
@@ -2940,11 +2901,6 @@ export default function RecommendationsPage() {
                   Suivant - Finaliser l'analyse
                 </Button>
               </div>
-              {selectedPreconisations.length === 0 && (
-                <p className="text-center text-sm text-muted-foreground mt-2">
-                  Sélectionnez au moins une préconisation pour continuer
-                </p>
-              )}
             </div>
           </>
         ) : (

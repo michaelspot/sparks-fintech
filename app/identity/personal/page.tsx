@@ -761,7 +761,6 @@ export default function PersonalInfoPage() {
           <Card>
             <CardHeader>
               <CardTitle>Généralités</CardTitle>
-              <CardDescription>Informations personnelles de base</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
@@ -1077,7 +1076,6 @@ export default function PersonalInfoPage() {
           <Card>
             <CardHeader>
               <CardTitle>Situation Familiale</CardTitle>
-              <CardDescription>Informations sur votre situation matrimoniale</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1452,7 +1450,6 @@ export default function PersonalInfoPage() {
           <Card>
             <CardHeader>
               <CardTitle>Situation Professionnelle</CardTitle>
-              <CardDescription>Informations sur votre activité professionnelle</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

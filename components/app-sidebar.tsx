@@ -132,39 +132,19 @@ const data = {
       icon: TrendingUp,
       items: [
         {
-          title: "Prévoyance",
-          url: "/simulations/prevoyance",
-          icon: Shield,
-        },
-        {
           title: "Pacte Dutreil",
           url: "/simulations/pacte-dutreil",
           icon: Building,
         },
         {
+          title: "DMTG - Succession",
+          url: "/simulations/dmtg",
+          icon: FileText,
+        },
+        {
           title: "Cession immobilière",
           url: "/simulations/cession-immobiliere",
           icon: Home,
-        },
-        {
-          title: "Analyse macroéconomique",
-          url: "/simulations/macro",
-          icon: BarChart3,
-        },
-        {
-          title: "Versement de PER",
-          url: "/simulations/per",
-          icon: PiggyBank,
-        },
-        {
-          title: "Rachat d'assurance-vie",
-          url: "/simulations/assurance-vie",
-          icon: Banknote,
-        },
-        {
-          title: "Valorisation d'un bien",
-          url: "/simulations/valorisation",
-          icon: TrendingDown,
         },
         {
           title: "Statut juridique",

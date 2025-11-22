@@ -25,9 +25,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts"
-import { ChartContainer, ChartTooltip } from "@/components/ui/chart"
-import { Plus, Trash2, Calculator, HomeIcon, Percent, RefreshCw } from "lucide-react" // Renamed Home to HomeIcon
+import { Plus, Trash2, Calculator, HomeIcon, Percent, RefreshCw, AlertCircle } from "lucide-react" // Renamed Home to HomeIcon
 
 interface BienImmobilier {
   id: string
@@ -276,59 +274,46 @@ export default function IFIPage() {
         <div className="grid gap-4 md:grid-cols-2">
           <Card className="md:col-span-1">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <HomeIcon className="h-5 w-5" />
-                Patrimoine immobilier
+              <CardTitle>
+                Données de la déclaration
               </CardTitle>
-              <CardDescription>
-                Déclarez vos biens immobiliers pour calculer votre IFI. Les biens du patrimoine sont importés.
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium">Biens immobiliers (manuels ou importés)</h3>
+                  <h3 className="text-lg font-medium">Biens immobiliers</h3>
                 </div>
                 {biens.map((bien) => (
                   <div
                     key={bien.id}
-                    className="rounded-lg border bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-card-foreground shadow-sm p-4"
+                    className="flex justify-between items-center p-3 border rounded-lg"
                   >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 items-end">
-                      <div className="lg:col-span-5">
-                        <Label>Type de bien</Label>
-                        <Select
-                          value={bien.type}
-                          onValueChange={(value) => updateBien(bien.id, "type", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {typeBiens.map((type) => (
-                              <SelectItem key={type.value} value={type.value}>
-                                {type.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                      <div>
+                        <div className="font-medium">{bien.type}</div>
+                        {bien.description && (
+                          <div className="text-sm text-muted-foreground">
+                            {bien.description}
+                          </div>
+                        )}
                       </div>
-                      <div className="lg:col-span-5">
-                        <Label>Valeur nette (€)</Label>
-                        <Input
-                          type="number"
-                          value={bien.valeur}
-                          onChange={(e) => {
-                            const newValue = Number.parseFloat(e.target.value) || 0;
-                            updateBien(bien.id, "valeur", newValue);
-                          }}
-                        />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium">
+                        {bien.valeur.toLocaleString("fr-FR", {
+                          style: "currency",
+                          currency: "EUR",
+                        })}
                       </div>
-                      <div className="lg:col-span-2 flex justify-end items-end">
-                        <Button variant="outline" size="icon" onClick={() => deleteBien(bien.id)} className="h-9 w-9 bg-white">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => deleteBien(bien.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -338,81 +323,57 @@ export default function IFIPage() {
 
           <Card className="md:col-span-1">
             <CardHeader>
-              <CardTitle>Analyse patrimoniale IFI</CardTitle>
-              <CardDescription>Répartition et évolution de votre patrimoine taxable à l'IFI</CardDescription>
+              <CardTitle>Calcul de l'IFI</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <Card className="bg-muted/50 mb-6">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2">
-                    <Calculator className="h-5 w-5" />
-                    Calcul de l'IFI
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between">
-                    <span>Patrimoine brut total</span>
-                    <span>{patrimoineNetTaxable.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}</span>
-                  </div>
-                  <div className="flex justify-between text-lg font-semibold">
-                    <span>IFI à payer</span>
-                    <span className={ifi > 0 ? "text-red-600" : "text-green-600"}>
-                      {ifi.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
-                    </span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between">
-                    <span>Valeur brute totale</span>
-                    <span className="font-medium">
-                      {valeurBruteTotal.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between">
-                    <span>Patrimoine après abattement RP (30%)</span>
-                    <span className="font-medium">
-                      {patrimoineNetTaxable.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
-                    </span>
-                  </div>
-                  {ifi > 0 && (
-                    <div className="flex justify-between">
-                      <span>Taux effectif</span>
-                      <Badge variant="secondary">{tauxEffectif.toFixed(3)}%</Badge>
-                    </div>
-                  )}
-                  {margeAvantSeuil > 0 && (
-                    <div className="flex justify-between text-green-600">
-                      <span>Marge avant seuil d'imposition</span>
-                      <span className="font-medium">
-                        {margeAvantSeuil.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
-                      </span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-              <Card
-                className={`p-4 ${ifi > 0 ? "border-red-200 bg-red-50 dark:bg-red-900/30" : "border-green-200 bg-green-50 dark:bg-green-900/30"}`}
-              >
-                <div className="flex items-center gap-2">
-                  <Percent
-                    className={`h-5 w-5 ${ifi > 0 ? "text-red-600 dark:text-red-200" : "text-green-600 dark:text-green-200"}`}
-                  />
-                  <div>
-                    <p
-                      className={`font-medium ${ifi > 0 ? "text-red-800 dark:text-red-200" : "text-green-800 dark:text-green-200"}`}
-                    >
-                      {ifi > 0 ? "Assujetti à l'IFI" : "Non assujetti à l'IFI"}
-                    </p>
-                    <p
-                      className={`text-sm ${ifi > 0 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}
-                    >
-                      {ifi > 0
-                        ? `Patrimoine supérieur au seuil de ${seuilImposition.toLocaleString("fr-FR")}€`
-                        : `Patrimoine inférieur au seuil de ${seuilImposition.toLocaleString("fr-FR")}€`}
-                    </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Valeur brute totale</Label>
+                  <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
+                    {valeurBruteTotal.toLocaleString("fr-FR", {
+                      style: "currency",
+                      currency: "EUR",
+                    })}
                   </div>
                 </div>
-              </Card>
+                <div className="space-y-2">
+                  <Label>Patrimoine après abattement RP</Label>
+                  <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
+                    {patrimoineNetTaxable.toLocaleString("fr-FR", {
+                      style: "currency",
+                      currency: "EUR",
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Taux effectif</Label>
+                  <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
+                    {tauxEffectif.toFixed(2)}%
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Marge avant seuil</Label>
+                  <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
+                    {margeAvantSeuil.toLocaleString("fr-FR", {
+                      style: "currency",
+                      currency: "EUR",
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>IFI à payer</Label>
+                <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
+                  {ifi.toLocaleString("fr-FR", {
+                    style: "currency",
+                    currency: "EUR",
+                  })}
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>

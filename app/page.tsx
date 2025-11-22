@@ -22,7 +22,7 @@ export default function Page() {
       const keysToClean = [
         'identityPersonalInfo',
         'identityObjectifsInfo', 
-        'identityInvestorInfo',
+        'identityInvestorProfileInfo',
         'patrimoineImmobilierInfo',
         'patrimoineFinancierInfo',
         'patrimoineProfessionnelInfo',
@@ -39,110 +39,84 @@ export default function Page() {
         firstName: "Jean",
         lastName: "Dupont",
         birthName: "Dupont",
-        age: "45",
-        birthDate: "1979-03-15", // Format ISO pour input date
-        birthPostalCode: "75001",
-        birthCity: "Paris",
-        city: "Neuilly-sur-Seine",
-        country: "France",
-        nationality: "francaise", // Valeur exacte du dropdown
-        legalCapacity: "majeur-capable", // Valeur exacte du dropdown
-        mifClassification: "non-professionnel", // Valeur exacte du dropdown
-        retirementAge: "62",
-        // Informations conjoint
         spouseTitle: "madame",
         spouseFirstName: "Marie",
         spouseLastName: "Dupont",
         spouseBirthName: "Martin",
+        birthDate: "1979-03-15",
+        spouseBirthDate: "1982-07-22",
+        age: "45",
         spouseAge: "42",
-        spouseBirthDate: "1982-07-22", // Format ISO pour input date
+        birthPostalCode: "75001",
         spouseBirthPostalCode: "69001",
-        spouseBirthCity: "Lyon",
+        city: "Neuilly-sur-Seine",
         spouseCity: "Neuilly-sur-Seine",
+        country: "France",
         spouseCountry: "France",
-        spouseNationality: "francaise", // Valeur exacte du dropdown
-        spouseLegalCapacity: "majeur-capable", // Valeur exacte du dropdown
-        spouseRetirementAge: "62",
-        // Situation familiale
-        maritalStatus: "marie", // Valeur exacte du dropdown
-        marriageDate: "2005-06-10", // Format ISO pour input date
+        nationality: "Française",
+        spouseNationality: "Française",
+        legalCapacity: "majeur-capable",
+        spouseLegalCapacity: "majeur-capable",
+        mifClassification: "non-professionnel",
+        maritalStatus: "marie",
+        marriageDate: "2005-06-10",
         marriagePlace: "Paris 16ème",
-        matrimonialRegime: "communaute-reduite", // Valeur exacte du dropdown
-        nbChildren: "2",
-        parent1Name: "Paul Dupont",
-        parent2Name: "Sophie Martin",
-        // Informations professionnelles
-        profession: "Ingénieur informatique",
-        company: "TechCorp France",
-        csp: "38", // Code CSP exact pour "Ingénieurs et cadres techniques d'entreprise"
-        spouseProfession: "Architecte",
-        spouseCompany: "Atelier Design",
-        spouseCsp: "31", // Code CSP exact pour "Professions libérales"
-        // Données des enfants avec tous les champs requis
+        matrimonialRegime: "communaute-reduite",
         children: [
           {
-            id: "1",
             firstName: "Emma",
+            lastName: "Dupont",
             birthDate: "2010-05-15",
-            age: "14",
             parentage: "commun",
-            dependant: "oui",
-            studies: "scolarite",
-            handicap: "non"
           },
           {
-            id: "2", 
             firstName: "Lucas",
+            lastName: "Dupont",
             birthDate: "2012-09-22",
-            age: "12",
             parentage: "commun",
-            dependant: "oui",
-            studies: "scolarite",
-            handicap: "non"
-          }
-        ]
+          },
+        ],
+        liberalities: "",
+        liberalitiesAmount: "",
+        lastWillDonation: "",
+        lastWillDonationType: "",
+        spouseLastWillDonation: "",
+        spouseLastWillDonationType: "",
+        profession: "Ingénieur informatique",
+        spouseProfession: "Architecte",
+        company: "TechCorp France",
+        spouseCompany: "Atelier Design",
+        csp: "38",
+        spouseCsp: "31",
+        retirementAge: "62",
+        spouseRetirementAge: "62",
       };
 
-      // Objectifs patrimoniaux (avec toutes les valeurs détaillées)
-      const objectives = {
-        primaryObjective: "preparation-retraite",
-        secondaryObjective: "transmission-patrimoine",
-        timeHorizon: "long-terme", // >10 ans
-        riskTolerance: "modere",
-        liquidityNeeds: "moyenne",
-        investmentExperience: "confirme",
-        specificProjects: "Achat résidence secondaire, éducation des enfants",
-        retirementGoals: "Maintenir le niveau de vie actuel",
-        inheritanceGoals: "Transmettre 70% du patrimoine aux enfants",
-        targetRetirementIncome: "8000",
-        currentSavingsRate: "25",
-        expectedRetirementAge: "62",
-        targetLegacyAmount: "500000",
-        liquidityBuffer: "6", // mois
-        emergencyFund: "50000"
-      };
-
-      // Profil investisseur (avec valeurs exactes des dropdowns)
-      const investorProfile = {
-        riskProfile: "modere",
-        investmentHorizon: "long-terme",
-        knowledgeLevel: "confirme",
-        previousExperience: "Actions, obligations, immobilier, SCPI",
-        maxLossAcceptable: "15", // pourcentage sans le %
-        preferredAssets: ["immobilier", "actions-europeennes", "obligations"],
-        excludedAssets: ["crypto-monnaies", "produits-derives"],
-        investmentObjectives: ["croissance", "revenus"],
-        portfolioAllocation: {
-          actions: "40",
-          obligations: "30",
-          immobilier: "20",
-          liquidites: "10"
+      // Objectifs patrimoniaux (conformes à identityObjectifsInfo)
+      const identityObjectivesInfo = {
+        objectives: {
+          "Se constituer une épargne de précaution": { selected: true, horizon: "1" },
+          "Constituer, valoriser, diversifier un capital sur le long terme": { selected: true, horizon: "12" },
+          "Obtenir des revenus complémentaires": { selected: true, horizon: "6" },
+          "Préparer sa retraite": { selected: true, horizon: "15" },
+          "Aider ses enfants": { selected: true, horizon: "8" },
         },
-        rebalancingFrequency: "annuelle",
-        esgPreferences: "important"
+        monthlySavings: "800",
+        precautionarySavings: "20000",
       };
 
-      // Patrimoine immobilier (avec tous les champs obligatoires correspondant aux types Property)
+      // Profil investisseur (conforme à identityInvestorProfileInfo)
+      const identityInvestorProfileInfo = {
+        userProfile: {
+          knowledge: { label: "Informé", esgDetails: { envActivities: null, envSocialObjective: null, negativeImpacts: null } },
+          risk: { label: "Équilibré", esgDetails: { envActivities: null, envSocialObjective: null, negativeImpacts: null } },
+          capacity: { label: "Élevée", esgDetails: { envActivities: null, envSocialObjective: null, negativeImpacts: null } },
+          esg: { label: "Modérée", esgDetails: { envActivities: null, envSocialObjective: null, negativeImpacts: null } },
+        },
+        spouseProfile: null,
+      };
+
+      // Patrimoine immobilier (conforme au type Property de /patrimoine/immobilier)
       const patrimoineImmobilierInfo = [
         {
           id: "1",
@@ -161,7 +135,7 @@ export default function Page() {
           ges: "C",
           grossValue: 950000,
           attachedDebts: 180000,
-          netValue: 770000
+          netValue: 770000,
         },
         {
           id: "2",
@@ -180,11 +154,11 @@ export default function Page() {
           ges: "D",
           grossValue: 680000,
           attachedDebts: 0,
-          netValue: 680000
-        }
+          netValue: 680000,
+        },
       ];
 
-      // Patrimoine financier (avec valeurs exactes et types corrigés)
+      // Patrimoine financier (conforme au type FinancialAsset de /patrimoine/financier)
       const patrimoineFinancierInfo = [
         {
           id: "1",
@@ -195,7 +169,7 @@ export default function Page() {
           ownershipMode: "Pleine propriété",
           ownershipPercentage: 100,
           ownedBy: "Vous",
-          performance: 3.2
+          performance: 3.2,
         },
         {
           id: "2",
@@ -206,7 +180,7 @@ export default function Page() {
           ownershipMode: "Pleine propriété",
           ownershipPercentage: 100,
           ownedBy: "Vous",
-          performance: 6.8
+          performance: 6.8,
         },
         {
           id: "3",
@@ -217,7 +191,7 @@ export default function Page() {
           ownershipMode: "Commun",
           ownershipPercentage: 50,
           ownedBy: "Commun",
-          performance: 3.0
+          performance: 3.0,
         },
         {
           id: "4",
@@ -228,144 +202,144 @@ export default function Page() {
           ownershipMode: "Commun",
           ownershipPercentage: 50,
           ownedBy: "Commun",
-          performance: 4.5
-        }
+          performance: 4.5,
+        },
       ];
 
-      // Patrimoine professionnel (avec valeurs exactes et types corrigés)
+      // Patrimoine professionnel (conforme à patrimoineProfessionnelInfo)
       const patrimoineProfessionnelInfo = [
         {
           id: "1",
-          assetName: "PERP",
-          category: "perp",
-          value: 45000,
+          companyName: "SARL Atelier Design",
+          activity: "Architecture",
+          shareOwnership: "Parts sociales",
+          ownershipPercentage: 50,
+          willToTransfer: "Oui",
+          ownership: "Commun",
+          valuation: 120000,
+        },
+        {
+          id: "2",
+          companyName: "EI Conseil Tech",
+          activity: "Conseil informatique",
+          shareOwnership: "Entreprise individuelle",
+          ownershipPercentage: 100,
+          willToTransfer: "Non",
           ownership: "Vous",
-          institution: "Generali",
-          annualReturn: 2.8,
-          riskLevel: "faible",
-          notes: "Plan d'épargne retraite populaire"
-        }
+          valuation: 85000,
+        },
       ];
 
-      // Budget - Revenus (avec valeurs exactes et types corrigés)
+      // Budget - Revenus (conforme au type Income de /budget/revenus)
       const revenuInfo = [
         {
           id: "1",
-          intitule: "Salaire Jean",
-          montant: 6500,
-          periodicite: "mensuel",
-          type: "salaire",
-          fiscalite: "imposable",
-          netBrut: "net",
-          evolutionPrevue: 2,
-          notes: "Salaire ingénieur informatique"
+          type: "Salaires",
+          denomination: "Salaire Jean",
+          amount: 6500,
+          ownedBy: "Vous",
+          fiscalRegime: "Aucun régime (déduction automatique de 10%)",
         },
         {
           id: "2",
-          intitule: "Salaire Marie",
-          montant: 4800,
-          periodicite: "mensuel",
-          type: "salaire",
-          fiscalite: "imposable",
-          netBrut: "net",
-          evolutionPrevue: 2,
-          notes: "Salaire architecte"
+          type: "Salaires",
+          denomination: "Salaire Marie",
+          amount: 4800,
+          ownedBy: "Votre conjoint",
+          fiscalRegime: "Aucun régime (déduction automatique de 10%)",
         },
         {
           id: "3",
-          intitule: "Loyers appartement",
-          montant: 2800,
-          periodicite: "mensuel",
-          type: "revenus-fonciers",
-          fiscalite: "imposable",
-          evolutionPrevue: 1,
-          notes: "Revenus locatifs Paris"
-        }
-      ];
-
-      // Budget - Charges (avec valeurs exactes et types corrigés)
-      const chargeInfo = [
-        {
-          id: "1",
-          intitule: "Crédit immobilier",
-          montant: 2200,
-          periodicite: "mensuel",
-          type: "credit-immobilier",
-          obligatoire: true,
-          evolutionPrevue: 0,
-          dateFinPrevue: "2030-03-15",
-          notes: "Crédit résidence principale"
-        },
-        {
-          id: "2",
-          intitule: "Charges copropriété",
-          montant: 450,
-          periodicite: "mensuel",
-          type: "charges-logement",
-          obligatoire: true,
-          evolutionPrevue: 2,
-          notes: "Syndic et entretien"
-        },
-        {
-          id: "3",
-          intitule: "Alimentation",
-          montant: 800,
-          periodicite: "mensuel",
-          type: "alimentation",
-          obligatoire: true,
-          evolutionPrevue: 2,
-          notes: "Courses et repas famille"
+          type: "Revenus fonciers",
+          denomination: "Loyers appartement Paris",
+          amount: 2800,
+          ownedBy: "Vous",
+          fiscalRegime: "Micro-foncier",
         },
         {
           id: "4",
-          intitule: "Frais scolaires enfants",
-          montant: 1200,
-          periodicite: "mensuel",
-          type: "education",
-          obligatoire: false,
-          evolutionPrevue: 3,
-          dateFinPrevue: "2040-06-30",
-          notes: "Scolarité et activités"
+          type: "Revenus mobiliers",
+          denomination: "Dividendes PEA",
+          amount: 400,
+          ownedBy: "Vous",
+          fiscalRegime: "PFU",
         },
         {
           id: "5",
-          intitule: "Assurances diverses",
-          montant: 350,
-          periodicite: "mensuel",
-          type: "assurances",
-          obligatoire: true,
-          evolutionPrevue: 2,
-          notes: "Auto, habitation, santé"
+          type: "Revenus industriels et commerciaux",
+          denomination: "Activité freelance",
+          amount: 1200,
+          ownedBy: "Vous",
+          fiscalRegime: "Micro-BIC Activités de service",
+          deductibleExpenses: undefined,
+        },
+      ];
+
+      // Budget - Charges (conforme au type Expense de /budget/charges)
+      const chargeInfo = [
+        {
+          id: "1",
+          type: "Échéances - Crédits immobiliers",
+          denomination: "Crédit résidence principale",
+          amount: 2200,
+          ownedBy: "Commun",
+        },
+        {
+          id: "2",
+          type: "Autres dépenses courantes",
+          denomination: "Charges copropriété",
+          amount: 450,
+          ownedBy: "Commun",
+        },
+        {
+          id: "3",
+          type: "Autres dépenses courantes",
+          denomination: "Alimentation",
+          amount: 800,
+          ownedBy: "Commun",
+        },
+        {
+          id: "4",
+          type: "Charges d'éducation",
+          denomination: "Frais scolaires enfants",
+          amount: 1200,
+          ownedBy: "Commun",
+        },
+        {
+          id: "5",
+          type: "Autres impôts et taxes",
+          denomination: "Assurances diverses",
+          amount: 350,
+          ownedBy: "Commun",
         },
         {
           id: "6",
-          intitule: "Impôts sur le revenu",
-          montant: 2100,
-          periodicite: "mensuel",
-          type: "impots",
-          obligatoire: true,
-          evolutionPrevue: 2,
-          notes: "Prélèvement mensuel"
-        }
+          type: "Impôts sur le Revenu",
+          denomination: "Prélèvement IR mensuel",
+          amount: 2100,
+          ownedBy: "Commun",
+        },
       ];
 
       // Sauvegarder toutes les données dans localStorage avec les bonnes clés
       localStorage.setItem('identityPersonalInfo', JSON.stringify(personalInfo));
-      localStorage.setItem('identityObjectifsInfo', JSON.stringify(objectives));
-      localStorage.setItem('identityInvestorInfo', JSON.stringify(investorProfile));
+      localStorage.setItem('identityObjectifsInfo', JSON.stringify(identityObjectivesInfo));
+      localStorage.setItem('identityInvestorProfileInfo', JSON.stringify(identityInvestorProfileInfo));
       localStorage.setItem('patrimoineImmobilierInfo', JSON.stringify(patrimoineImmobilierInfo));
       localStorage.setItem('patrimoineFinancierInfo', JSON.stringify(patrimoineFinancierInfo));
       localStorage.setItem('patrimoineProfessionnelInfo', JSON.stringify(patrimoineProfessionnelInfo));
       localStorage.setItem('budgetRevenusInfo', JSON.stringify(revenuInfo));
       localStorage.setItem('budgetChargesInfo', JSON.stringify(chargeInfo));
-      
+
       console.log('✅ Toutes les données ont été importées avec succès!');
       console.log('📋 Données sauvegardées:', {
         identityPersonalInfo: personalInfo,
         patrimoineImmobilierInfo: patrimoineImmobilierInfo.length + ' biens',
         patrimoineFinancierInfo: patrimoineFinancierInfo.length + ' actifs',
         budgetRevenusInfo: revenuInfo.length + ' revenus',
-        budgetChargesInfo: chargeInfo.length + ' charges'
+        budgetChargesInfo: chargeInfo.length + ' charges',
+        identityObjectifsInfo: identityObjectivesInfo,
+        identityInvestorProfileInfo,
       });
 
       // Simuler un délai pour le feedback utilisateur
@@ -463,13 +437,13 @@ export default function Page() {
                 </div>
 
                 {/* Bouton Importer des données */}
-                <div className="flex items-center space-x-4 rounded-md border p-4 bg-purple-50 border-purple-200">
-                  <User className="h-6 w-6 text-purple-600" />
+                <div className="flex items-center space-x-4 rounded-md border p-4 bg-blue-50 border-blue-200">
+                  <User className="h-6 w-6 text-blue-600" />
                   <div className="flex-1 space-y-1">
-                    <p className="text-sm font-medium leading-none text-purple-900">
+                    <p className="text-sm font-medium leading-none text-blue-900">
                       Ou testez avec des données pré-remplies
                     </p>
-                    <p className="text-sm text-purple-700">
+                    <p className="text-sm text-blue-700">
                       Importez un profil client complet pour découvrir toutes les fonctionnalités
                     </p>
                   </div>
@@ -478,7 +452,7 @@ export default function Page() {
                     variant="outline"
                     onClick={importFictionalClientData}
                     disabled={isImporting}
-                    className="border-purple-300 text-purple-700 hover:bg-purple-100"
+                    className="border-blue-300 text-blue-700 hover:bg-blue-100"
                   >
                     {isImporting ? (
                       <>

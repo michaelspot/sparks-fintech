@@ -180,6 +180,10 @@ export default function FinancialPatrimonyPage() {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem className="hidden md:block">
+                <BreadcrumbLink href="/">Accueil</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator className="hidden md:block" />
+              <BreadcrumbItem className="hidden md:block">
                 <BreadcrumbLink href="/patrimoine">Patrimoine</BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
@@ -320,7 +324,7 @@ export default function FinancialPatrimonyPage() {
                 <div className="md:col-span-5 space-y-6">
                   <Card className="flex flex-col h-full">
                     <CardHeader>
-                      <h3 className="text-3xl font-bold text-black">{totalRealValue.toLocaleString("fr-FR")} €</h3>
+                      <h3 className="text-3xl font-bold text-black">{totalRealValue.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}</h3>
                       <CardDescription>Patrimoine Financier Total</CardDescription>
                     </CardHeader>
                     <CardContent className="flex-grow">
@@ -336,7 +340,7 @@ export default function FinancialPatrimonyPage() {
                               <span className="font-medium">{item.name}</span>
                             </div>
                             <div className="flex items-center space-x-4">
-                              <span className="font-semibold">{item.value.toLocaleString("fr-FR")} €</span>
+                              <span className="font-semibold">{item.value.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}</span>
                               <span className="text-sm text-muted-foreground min-w-[40px] text-right">
                                 {totalRealValue > 0 ? ((item.value / totalRealValue) * 100).toFixed(1) : 0}%
                               </span>
@@ -368,7 +372,7 @@ export default function FinancialPatrimonyPage() {
                               paddingAngle={5}
                               dataKey="value"
                             ></Pie>
-                            <Tooltip formatter={(value) => `${Number(value).toLocaleString("fr-FR")} €`} />
+                            <Tooltip formatter={(value) => `${Number(value).toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}`} />
                           </PieChart>
                         </ResponsiveContainer>
                       </div>
@@ -381,7 +385,7 @@ export default function FinancialPatrimonyPage() {
                               <div className={`w-3 h-3 rounded-full`} style={{ backgroundColor: item.fill }}></div>
                               <span className="text-sm">{item.name}</span>
                             </div>
-                            <span className="text-sm font-medium">{item.value.toLocaleString("fr-FR")} €</span>
+                            <span className="text-sm font-medium">{item.value.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}</span>
                           </div>
                         ))}
                       </div>
@@ -401,7 +405,7 @@ export default function FinancialPatrimonyPage() {
                       <div>
                         <CardTitle className="text-lg">{asset.denomination}</CardTitle>
                         <CardDescription>
-                          {asset.type} • {asset.realValue.toLocaleString("fr-FR")} € • {asset.ownedBy}
+                          {asset.type} • {asset.realValue.toLocaleString("fr-FR", { style: "currency", currency: "EUR" })} • {asset.ownedBy}
                         </CardDescription>
                       </div>
                       <div className="flex items-center space-x-4">

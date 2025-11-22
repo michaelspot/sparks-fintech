@@ -135,7 +135,7 @@ export const preconisations: Preconisation[] = [
       "Rédaction imprécise ⟶ litiges potentiels"
     ],
     icon: FileSignature,
-    color: "text-purple-600",
+    color: "text-blue-600",
     conditions: [
       // Age permettant de bénéficier d'un bon rendement à long terme
       { type: "profile", field: "age", operator: "gte", value: 25 },
@@ -542,7 +542,7 @@ export const preconisations: Preconisation[] = [
       "Évaluation du préjudice parfois délicate"
     ],
     icon: Briefcase,
-    color: "text-violet-600",
+    color: "text-blue-600",
     conditions: []
   },
   {
@@ -646,7 +646,7 @@ export const preconisations: Preconisation[] = [
       "Plus‑value professionnelle (2025)"
     ],
     icon: Users,
-    color: "text-purple-700",
+    color: "text-blue-700",
     conditions: []
   },
   {

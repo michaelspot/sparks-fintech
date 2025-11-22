@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   Card,
   CardContent,
@@ -802,7 +803,7 @@ export default function ImpotRevenuPage() {
     }));
 
   return (
-    <SidebarInset>
+    <SidebarInset className="overflow-hidden">
       <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
         <div className="flex items-center gap-2 px-4">
           <SidebarTrigger className="-ml-1" />
@@ -829,14 +830,9 @@ export default function ImpotRevenuPage() {
           {/* Colonne de gauche - Saisie des données */}
           <Card className="md:col-span-1">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Déclaration de revenus
+              <CardTitle>
+                Données de la déclaration
               </CardTitle>
-              <CardDescription>
-                Saisissez vos différents revenus pour calculer votre impôt selon
-                la logique fiscale française exacte.
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Situation familiale */}
@@ -846,9 +842,6 @@ export default function ImpotRevenuPage() {
                   <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted px-3 py-2 text-sm">
                     {situationFamiliale}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Définie dans la section Identité
-                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="parts">Nombre de parts fiscales</Label>
@@ -884,17 +877,6 @@ export default function ImpotRevenuPage() {
                       <RefreshCw className="h-4 w-4 text-muted-foreground hover:text-primary" />
                     </button>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Calculé:{" "}
-                    {calculerPartsFiscales(
-                      situationFamiliale === "Célibataire" ||
-                        situationFamiliale === "Veuf"
-                        ? 1
-                        : 2,
-                      nombreEnfants,
-                    )}{" "}
-                    parts ({nombreEnfants} enfant{nombreEnfants > 1 ? "s" : ""})
-                  </p>
                 </div>
               </div>
 
@@ -914,9 +896,6 @@ export default function ImpotRevenuPage() {
                         setDeductionsImpot(Number(e.target.value) || 0)
                       }
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Réduisent le revenu imposable
-                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="reductions">Réductions d'impôt (€)</Label>
@@ -928,9 +907,6 @@ export default function ImpotRevenuPage() {
                         setReductionsImpot(Number(e.target.value) || 0)
                       }
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Réduisent l'impôt calculé
-                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="credit">Crédit d'impôt (€)</Label>
@@ -942,9 +918,6 @@ export default function ImpotRevenuPage() {
                         setCreditImpot(Number(e.target.value) || 0)
                       }
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Peuvent créer un remboursement
-                    </p>
                   </div>
                 </div>
               </div>
@@ -955,9 +928,6 @@ export default function ImpotRevenuPage() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-medium">Revenus déclarés</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Importés depuis la section Revenus
-                  </p>
                 </div>
 
                 {revenus.length === 0 && (
@@ -987,11 +957,23 @@ export default function ImpotRevenuPage() {
                           )}
                         </div>
                       </div>
-                      <div className="font-mono font-semibold">
-                        {revenu.montant.toLocaleString("fr-FR", {
-                          style: "currency",
-                          currency: "EUR",
-                        })}
+                      <div className="flex items-center gap-2">
+                        <div className="font-medium">
+                          {revenu.montant.toLocaleString("fr-FR", {
+                            style: "currency",
+                            currency: "EUR",
+                          })}
+                        </div>
+                        {revenu.source === "manual" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => deleteRevenu(revenu.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -1002,688 +984,658 @@ export default function ImpotRevenuPage() {
 
           {/* Colonne de droite - Résultats du calcul */}
           <Card className="md:col-span-1">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calculator className="h-5 w-5" />
-                Calcul de l'impôt sur le revenu
-              </CardTitle>
-              <CardDescription>
-                Résultats basés sur le barème 2024 et la logique fiscale
-                française
-              </CardDescription>
+            <CardHeader className="flex items-start justify-between">
+              <div>
+                <CardTitle>
+                  Calcul de l'impôt sur le revenu
+                </CardTitle>
+              </div>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">Voir détail</Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Détails du calcul (vérification)</DialogTitle>
+                    <DialogDescription>
+                      Cette section montre le détail étape par étape du calcul fiscal
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-6">
+                    {/* Étape 1: Revenus bruts */}
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-sm text-muted-foreground">
+                        ÉTAPE 1 : REVENUS BRUTS PAR CATÉGORIE
+                      </h4>
+                      <div className="bg-muted/30 rounded-lg p-4 space-y-2 text-sm">
+                        {(() => {
+                          const salaires = revenus.filter(
+                            (r) =>
+                              r.type === "Salaires" ||
+                              r.type === "Pensions et retraites",
+                          );
+                          const bic = revenus.filter((r) =>
+                            [
+                              "Revenus industriels et commerciaux",
+                              "Revenus des locations meublées professionnels",
+                              "Revenus des locations meublées non professionnels",
+                            ].includes(r.type),
+                          );
+                          const bnc = revenus.filter(
+                            (r) => r.type === "Revenus non commerciaux",
+                          );
+                          const ba = revenus.filter(
+                            (r) => r.type === "Revenus agricoles",
+                          );
+                          const fonciers = revenus.filter(
+                            (r) => r.type === "Revenus fonciers",
+                          );
+                          const rcm = revenus.filter(
+                            (r) => r.type === "Revenus mobiliers",
+                          );
+                          const autres = revenus.filter(
+                            (r) =>
+                              ![
+                                "Salaires",
+                                "Pensions et retraites",
+                                "Revenus industriels et commerciaux",
+                                "Revenus des locations meublées professionnels",
+                                "Revenus des locations meublées non professionnels",
+                                "Revenus non commerciaux",
+                                "Revenus agricoles",
+                                "Revenus fonciers",
+                                "Revenus mobiliers",
+                              ].includes(r.type),
+                          );
+
+                          return (
+                            <>
+                              {salaires.length > 0 && (
+                                <div className="flex justify-between">
+                                  <span>• Salaires et pensions :</span>
+                                  <span className="font-mono">
+                                    {salaires
+                                      .reduce((sum, r) => sum + r.montant, 0)
+                                      .toLocaleString("fr-FR")} {" "}
+                                    €
+                                  </span>
+                                </div>
+                              )}
+                              {bic.length > 0 && (
+                                <div className="flex justify-between">
+                                  <span>
+                                    • BIC (Bénéfices Industriels et Commerciaux) :
+                                  </span>
+                                  <span className="font-mono">
+                                    {bic
+                                      .reduce((sum, r) => sum + r.montant, 0)
+                                      .toLocaleString("fr-FR")} {" "}
+                                    €
+                                  </span>
+                                </div>
+                              )}
+                              {bnc.length > 0 && (
+                                <div className="flex justify-between">
+                                  <span>• BNC (Bénéfices Non Commerciaux) :</span>
+                                  <span className="font-mono">
+                                    {bnc
+                                      .reduce((sum, r) => sum + r.montant, 0)
+                                      .toLocaleString("fr-FR")} {" "}
+                                    €
+                                  </span>
+                                </div>
+                              )}
+                              {ba.length > 0 && (
+                                <div className="flex justify-between">
+                                  <span>• BA (Bénéfices Agricoles) :</span>
+                                  <span className="font-mono">
+                                    {ba
+                                      .reduce((sum, r) => sum + r.montant, 0)
+                                      .toLocaleString("fr-FR")} {" "}
+                                    €
+                                  </span>
+                                </div>
+                              )}
+                              {fonciers.length > 0 && (
+                                <div className="flex justify-between">
+                                  <span>• Revenus fonciers :</span>
+                                  <span className="font-mono">
+                                    {fonciers
+                                      .reduce((sum, r) => sum + r.montant, 0)
+                                      .toLocaleString("fr-FR")} {" "}
+                                    €
+                                  </span>
+                                </div>
+                              )}
+                              {rcm.length > 0 && (
+                                <div className="flex justify-between">
+                                  <span>
+                                    • RCM (Revenus de Capitaux Mobiliers) :
+                                  </span>
+                                  <span className="font-mono">
+                                    {rcm
+                                      .reduce((sum, r) => sum + r.montant, 0)
+                                      .toLocaleString("fr-FR")} {" "}
+                                    €
+                                  </span>
+                                </div>
+                              )}
+                              {autres.length > 0 && (
+                                <div className="flex justify-between">
+                                  <span>• Autres revenus :</span>
+                                  <span className="font-mono">
+                                    {autres
+                                      .reduce((sum, r) => sum + r.montant, 0)
+                                      .toLocaleString("fr-FR")} {" "}
+                                    €
+                                  </span>
+                                </div>
+                              )}
+                              <Separator className="my-2" />
+                              <div className="flex justify-between font-semibold">
+                                <span>TOTAL REVENUS BRUTS :</span>
+                                <span className="font-mono">
+                                  {taxResult.revenuBrutGlobal.toLocaleString(
+                                    "fr-FR",
+                                  )} {" "}
+                                  €
+                                </span>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Étape 2: Abattements par catégorie */}
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-sm text-muted-foreground">
+                        ÉTAPE 2 : APPLICATION DES ABATTEMENTS
+                      </h4>
+                      <div className="bg-muted/30 rounded-lg p-4 space-y-2 text-sm">
+                        {(() => {
+                          const abattementSalaires =
+                            calculerAbattementSalaires(revenus);
+                          const abattementBIC = calculerAbattementBIC(revenus);
+                          const abattementBNC = calculerAbattementBNC(revenus);
+                          const abattementBA = calculerAbattementBA(revenus);
+                          const abattementFonciers =
+                            calculerAbattementFonciers(revenus);
+                          const abattementRCM = calculerAbattementRCM(revenus);
+                          const autresRevenus = calculerAutresRevenus(revenus);
+
+                          return (
+                            <>
+                              <div className="space-y-1">
+                                <div className="flex justify-between">
+                                  <span>
+                                    • Salaires après abattement (10% ou frais réels)
+                                    :
+                                  </span>
+                                  <span className="font-mono">
+                                    {abattementSalaires.toLocaleString("fr-FR")} €
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>• BIC après abattement :</span>
+                                  <span className="font-mono">
+                                    {abattementBIC.toLocaleString("fr-FR")} €
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>
+                                    • BNC après abattement (34% micro ou frais
+                                    réels) :
+                                  </span>
+                                  <span className="font-mono">
+                                    {abattementBNC.toLocaleString("fr-FR")} €
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>
+                                    • BA après abattement (87% micro ou frais réels)
+                                    :
+                                  </span>
+                                  <span className="font-mono">
+                                    {abattementBA.toLocaleString("fr-FR")} €
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>• Revenus fonciers après abattement :</span>
+                                  <span className="font-mono">
+                                    {abattementFonciers.toLocaleString("fr-FR")} €
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>• RCM après abattement :</span>
+                                  <span className="font-mono">
+                                    {abattementRCM.toLocaleString("fr-FR")} €
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>• Autres revenus :</span>
+                                  <span className="font-mono">
+                                    {autresRevenus.toLocaleString("fr-FR")} €
+                                  </span>
+                                </div>
+                              </div>
+                              <Separator className="my-2" />
+                              <div className="flex justify-between font-semibold">
+                                <span>REVENU NET GLOBAL AVANT DÉDUCTIONS :</span>
+                                <span className="font-mono">
+                                  {(
+                                    abattementSalaires +
+                                    abattementBIC +
+                                    abattementBNC +
+                                    abattementBA +
+                                    abattementFonciers +
+                                    abattementRCM +
+                                    autresRevenus
+                                  ).toLocaleString("fr-FR")} {" "}
+                                  €
+                                </span>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Étape 3: Déductions */}
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-sm text-muted-foreground">
+                        ÉTAPE 3 : DÉDUCTIONS SUR LE REVENU GLOBAL
+                      </h4>
+                      <div className="bg-muted/30 rounded-lg p-4 space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span>• Déductions fiscales appliquées :</span>
+                          <span className="font-mono">
+                            -{deductionsImpot.toLocaleString("fr-FR")} €
+                          </span>
+                        </div>
+                        <Separator className="my-2" />
+                        <div className="flex justify-between font-semibold">
+                          <span>REVENU NET IMPOSABLE :</span>
+                          <span className="font-mono">
+                            {taxResult.revenuNetGlobal.toLocaleString("fr-FR")} €
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Étape 4: Quotient familial */}
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-sm text-muted-foreground">
+                        ÉTAPE 4 : CALCUL DU QUOTIENT FAMILIAL
+                      </h4>
+                      <div className="bg-muted/30 rounded-lg p-4 space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span>• Situation familiale :</span>
+                          <span className="font-mono">{situationFamiliale}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>• Nombre d'enfants :</span>
+                          <span className="font-mono">{nombreEnfants}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>• Parts fiscales de base :</span>
+                          <span className="font-mono">
+                            {situationFamiliale === "Célibataire" ||
+                            situationFamiliale === "Veuf"
+                              ? 1
+                              : 2}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>• Parts supplémentaires (enfants) :</span>
+                          <span className="font-mono">
+                            {(
+                              nbParts -
+                              (situationFamiliale === "Célibataire" ||
+                              situationFamiliale === "Veuf"
+                                ? 1
+                                : 2)
+                            ).toFixed(1)}
+                          </span>
+                        </div>
+                        <Separator className="my-2" />
+                        <div className="flex justify-between font-semibold">
+                          <span>NOMBRE TOTAL DE PARTS :</span>
+                          <span className="font-mono">{nbParts}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>
+                            • Quotient familial (Revenu imposable / Parts) :
+                          </span>
+                          <span className="font-mono">
+                            {(taxResult.revenuNetGlobal / nbParts).toLocaleString(
+                              "fr-FR",
+                            )} {" "}
+                            €
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Étape 5: Barème progressif */}
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-sm text-muted-foreground">
+                        ÉTAPE 5 : APPLICATION DU BARÈME PROGRESSIF 2025
+                      </h4>
+                      <div className="bg-muted/30 rounded-lg p-4 space-y-2 text-sm">
+                        {(() => {
+                          const quotient = taxResult.revenuNetGlobal / nbParts;
+                          const tranches = [
+                            { min: 0, max: 11498, taux: 0 },
+                            { min: 11498, max: 29315, taux: 11 },
+                            { min: 29315, max: 83823, taux: 30 },
+                            { min: 83823, max: 180294, taux: 41 },
+                            { min: 180294, max: Infinity, taux: 45 },
+                          ];
+
+                          let impotParPart = 0;
+                          const details = tranches
+                            .map((tranche) => {
+                              const base = Math.min(
+                                Math.max(quotient - tranche.min, 0),
+                                tranche.max - tranche.min,
+                              );
+                              const impot = (base * tranche.taux) / 100;
+                              impotParPart += impot;
+                              return { tranche, base, impot };
+                            })
+                            .filter((d) => d.base > 0);
+
+                          return (
+                            <>
+                              <div className="space-y-1">
+                                {details.map((d, i) => (
+                                  <div key={i} className="flex justify-between">
+                                    <span>
+                                      • Tranche {d.tranche.taux}% (
+                                      {d.tranche.min.toLocaleString("fr-FR")} € - {" "}
+                                      {d.tranche.max === Infinity
+                                        ? "∞"
+                                        : d.tranche.max.toLocaleString(
+                                            "fr-FR",
+                                          )} {" "}
+                                      €) :
+                                    </span>
+                                    <span className="font-mono">
+                                      {d.base.toLocaleString("fr-FR")} € × {" "}
+                                      {d.tranche.taux}% = {" "}
+                                      {d.impot.toLocaleString("fr-FR")} €
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                              <Separator className="my-2" />
+                              <div className="flex justify-between">
+                                <span>Impôt par part :</span>
+                                <span className="font-mono">
+                                  {impotParPart.toLocaleString("fr-FR")} €
+                                </span>
+                              </div>
+                              <div className="flex justify-between font-semibold">
+                                <span>
+                                  IMPÔT AVANT PLAFONNEMENT (
+                                  {impotParPart.toLocaleString("fr-FR")} € × {" "}
+                                  {nbParts} parts) :
+                                </span>
+                                <span className="font-mono">
+                                  {(impotParPart * nbParts).toLocaleString("fr-FR")} {" "}
+                                  €
+                                </span>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Étape 6: Plafonnement du quotient familial */}
+                    {taxResult.plafonnementFamilial && (
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-sm text-muted-foreground">
+                          ÉTAPE 6 : PLAFONNEMENT DU QUOTIENT FAMILIAL
+                        </h4>
+                        <div className="bg-muted/30 rounded-lg p-4 space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span>
+                              • Avantage fiscal maximal par demi-part supplémentaire :
+                            </span>
+                            <span className="font-mono">1 759 €</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>• Dépassement du plafond :</span>
+                            <span className="font-mono">
+                              {taxResult.montantDepassement.toLocaleString("fr-FR")} {" "}
+                              €
+                            </span>
+                          </div>
+                          <Separator className="my-2" />
+                          <div className="flex justify-between font-semibold">
+                            <span>IMPÔT APRÈS PLAFONNEMENT :</span>
+                            <span className="font-mono">
+                              {taxResult.impotBrutFinal.toLocaleString("fr-FR")} €
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Étape 7: Décote */}
+                    {taxResult.decote > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-sm text-muted-foreground">
+                          ÉTAPE 7 : APPLICATION DE LA DÉCOTE
+                        </h4>
+                        <div className="bg-muted/30 rounded-lg p-4 space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span>
+                              • Seuil de décote (
+                              {situationFamiliale === "Célibataire" ||
+                              situationFamiliale === "Veuf"
+                                ? "célibataire"
+                                : "couple"}
+                              ) :
+                            </span>
+                            <span className="font-mono">
+                              {(situationFamiliale === "Célibataire" ||
+                              situationFamiliale === "Veuf"
+                                ? 1929
+                                : 3191
+                              ).toLocaleString("fr-FR")} {" "}
+                              €
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>• Montant de la décote :</span>
+                            <span className="font-mono">
+                              -{taxResult.decote.toLocaleString("fr-FR")} €
+                            </span>
+                          </div>
+                          <Separator className="my-2" />
+                          <div className="flex justify-between font-semibold">
+                            <span>IMPÔT APRÈS DÉCOTE :</span>
+                            <span className="font-mono">
+                              {taxResult.impotNet.toLocaleString("fr-FR")} €
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Étape 8: Réductions et crédits d'impôt */}
+                    {(reductionsImpot > 0 || creditImpot > 0) && (
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-sm text-muted-foreground">
+                          ÉTAPE 8 : RÉDUCTIONS ET CRÉDITS D'IMPÔT
+                        </h4>
+                        <div className="bg-muted/30 rounded-lg p-4 space-y-2 text-sm">
+                          {reductionsImpot > 0 && (
+                            <div className="flex justify-between">
+                              <span>• Réductions d'impôt :</span>
+                              <span className="font-mono text-green-600">
+                                -{reductionsImpot.toLocaleString("fr-FR")} €
+                              </span>
+                            </div>
+                          )}
+                          {creditImpot > 0 && (
+                            <div className="flex justify-between">
+                              <span>• Crédits d'impôt :</span>
+                              <span className="font-mono text-green-600">
+                                -{creditImpot.toLocaleString("fr-FR")} €
+                              </span>
+                            </div>
+                          )}
+                          <Separator className="my-2" />
+                          <div className="flex justify-between font-semibold">
+                            <span>IMPÔT APRÈS AVANTAGES :</span>
+                            <span className="font-mono">
+                              {Math.max(
+                                0,
+                                taxResult.impotNet - reductionsImpot - creditImpot,
+                              ).toLocaleString("fr-FR")} {" "}
+                              €
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Étape 9: CEHR */}
+                    {taxResult.cehr > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-sm text-muted-foreground">
+                          ÉTAPE 9 : CONTRIBUTION EXCEPTIONNELLE (CEHR)
+                        </h4>
+                        <div className="bg-muted/30 rounded-lg p-4 space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span>
+                              • Seuil d'application (
+                              {situationFamiliale === "Célibataire" ||
+                              situationFamiliale === "Veuf"
+                                ? "célibataire"
+                                : "couple"}
+                              ) :
+                            </span>
+                            <span className="font-mono">
+                              {(situationFamiliale === "Célibataire" ||
+                              situationFamiliale === "Veuf"
+                                ? 250000
+                                : 500000
+                              ).toLocaleString("fr-FR")} {" "}
+                              €
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>• Taux appliqué :</span>
+                            <span className="font-mono">
+                              {taxResult.revenuNetGlobal >
+                              (situationFamiliale === "Célibataire" ||
+                              situationFamiliale === "Veuf"
+                                ? 500000
+                                : 1000000)
+                                ? "4%"
+                                : "3%"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>• Montant de la CEHR :</span>
+                            <span className="font-mono">
+                              +{taxResult.cehr.toLocaleString("fr-FR")} €
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Résultat final */}
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-sm text-muted-foreground">
+                        RÉSULTAT FINAL
+                      </h4>
+                      <div className="bg-muted/30 rounded-lg p-4 space-y-2">
+                        <div className="flex justify-between text-lg font-bold">
+                          <span>IMPÔT TOTAL À PAYER :</span>
+                          <span className="font-mono">
+                            {taxResult.impotTotal.toLocaleString("fr-FR")} €
+                          </span>
+                        </div>
+                        <Separator className="my-3" />
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">
+                              Tranche marginale d'imposition
+                            </span>
+                            <p className="text-xl font-bold">{taxResult.tmi}%</p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">
+                              Taux moyen d'imposition
+                            </span>
+                            <p className="text-xl font-bold">
+                              {taxResult.tauxMoyen.toFixed(2)}%
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Résumé principal */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-4 border rounded-lg">
-                  <div className="text-sm font-medium text-muted-foreground">
-                    Revenu net global
+                <div className="space-y-2">
+                  <Label>Revenu brut global</Label>
+                  <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
+                    {taxResult.revenuBrutGlobal.toLocaleString("fr-FR", {
+                      style: "currency",
+                      currency: "EUR",
+                    })}
                   </div>
-                  <div className="text-2xl font-bold">
+                </div>
+                <div className="space-y-2">
+                  <Label>Revenu net global</Label>
+                  <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
                     {taxResult.revenuNetGlobal.toLocaleString("fr-FR", {
                       style: "currency",
                       currency: "EUR",
                     })}
                   </div>
                 </div>
-                <div className="text-center p-4 border rounded-lg bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-                  <div className="text-sm font-medium text-muted-foreground">
-                    Impôt total dû
-                  </div>
-                  <div
-                    className={`text-2xl font-bold ${taxResult.impotTotal < 0 ? "text-blue-600 dark:text-blue-400" : "text-blue-700 dark:text-blue-300"}`}
-                  >
-                    {taxResult.impotTotal.toLocaleString("fr-FR", {
-                      style: "currency",
-                      currency: "EUR",
-                    })}
-                    {taxResult.impotTotal < 0 && (
-                      <div className="text-sm font-normal">(remboursement)</div>
-                    )}
-                  </div>
-                </div>
               </div>
 
-              {/* Indicateurs fiscaux */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-3 border rounded-lg">
-                  <div className="text-sm font-medium text-muted-foreground">
-                    Tranche marginale
-                  </div>
-                  <div className="text-xl font-bold">
+                <div className="space-y-2">
+                  <Label>Tranche marginale</Label>
+                  <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
                     {taxResult.tmi.toFixed(1)}%
                   </div>
                 </div>
-                <div className="text-center p-3 border rounded-lg">
-                  <div className="text-sm font-medium text-muted-foreground">
-                    Taux moyen
-                  </div>
-                  <div className="text-xl font-bold">
+                <div className="space-y-2">
+                  <Label>Taux moyen</Label>
+                  <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
                     {taxResult.tauxMoyen.toFixed(2)}%
                   </div>
                 </div>
               </div>
 
-              {/* Alertes sur le plafonnement familial */}
-              {taxResult.plafonnementFamilial && (
-                <div className="p-4 border border-blue-200 dark:border-blue-800 rounded-lg bg-blue-50 dark:bg-blue-950">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
-                    <div>
-                      <h4 className="font-medium text-blue-900 dark:text-blue-100">
-                        Plafonnement familial appliqué
-                      </h4>
-                      <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                        L'avantage fiscal lié aux enfants a été plafonné.
-                        Dépassement :{" "}
-                        {taxResult.montantDepassement.toLocaleString("fr-FR", {
-                          style: "currency",
-                          currency: "EUR",
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Section des détails de calcul détaillés */}
-          <Card className="bg-gray-50 border-gray-300 md:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold text-gray-700">
-                Détails du calcul (vérification)
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Cette section montre le détail étape par étape du calcul fiscal
-              </p>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {/* Étape 1: Revenus bruts */}
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-sm text-muted-foreground">
-                    ÉTAPE 1 : REVENUS BRUTS PAR CATÉGORIE
-                  </h4>
-                  <div className="bg-muted/30 rounded-lg p-4 space-y-2 text-sm">
-                    {(() => {
-                      const salaires = revenus.filter(
-                        (r) =>
-                          r.type === "Salaires" ||
-                          r.type === "Pensions et retraites",
-                      );
-                      const bic = revenus.filter((r) =>
-                        [
-                          "Revenus industriels et commerciaux",
-                          "Revenus des locations meublées professionnels",
-                          "Revenus des locations meublées non professionnels",
-                        ].includes(r.type),
-                      );
-                      const bnc = revenus.filter(
-                        (r) => r.type === "Revenus non commerciaux",
-                      );
-                      const ba = revenus.filter(
-                        (r) => r.type === "Revenus agricoles",
-                      );
-                      const fonciers = revenus.filter(
-                        (r) => r.type === "Revenus fonciers",
-                      );
-                      const rcm = revenus.filter(
-                        (r) => r.type === "Revenus mobiliers",
-                      );
-                      const autres = revenus.filter(
-                        (r) =>
-                          ![
-                            "Salaires",
-                            "Pensions et retraites",
-                            "Revenus industriels et commerciaux",
-                            "Revenus des locations meublées professionnels",
-                            "Revenus des locations meublées non professionnels",
-                            "Revenus non commerciaux",
-                            "Revenus agricoles",
-                            "Revenus fonciers",
-                            "Revenus mobiliers",
-                          ].includes(r.type),
-                      );
-
-                      return (
-                        <>
-                          {salaires.length > 0 && (
-                            <div className="flex justify-between">
-                              <span>• Salaires et pensions :</span>
-                              <span className="font-mono">
-                                {salaires
-                                  .reduce((sum, r) => sum + r.montant, 0)
-                                  .toLocaleString("fr-FR")}{" "}
-                                €
-                              </span>
-                            </div>
-                          )}
-                          {bic.length > 0 && (
-                            <div className="flex justify-between">
-                              <span>
-                                • BIC (Bénéfices Industriels et Commerciaux) :
-                              </span>
-                              <span className="font-mono">
-                                {bic
-                                  .reduce((sum, r) => sum + r.montant, 0)
-                                  .toLocaleString("fr-FR")}{" "}
-                                €
-                              </span>
-                            </div>
-                          )}
-                          {bnc.length > 0 && (
-                            <div className="flex justify-between">
-                              <span>• BNC (Bénéfices Non Commerciaux) :</span>
-                              <span className="font-mono">
-                                {bnc
-                                  .reduce((sum, r) => sum + r.montant, 0)
-                                  .toLocaleString("fr-FR")}{" "}
-                                €
-                              </span>
-                            </div>
-                          )}
-                          {ba.length > 0 && (
-                            <div className="flex justify-between">
-                              <span>• BA (Bénéfices Agricoles) :</span>
-                              <span className="font-mono">
-                                {ba
-                                  .reduce((sum, r) => sum + r.montant, 0)
-                                  .toLocaleString("fr-FR")}{" "}
-                                €
-                              </span>
-                            </div>
-                          )}
-                          {fonciers.length > 0 && (
-                            <div className="flex justify-between">
-                              <span>• Revenus fonciers :</span>
-                              <span className="font-mono">
-                                {fonciers
-                                  .reduce((sum, r) => sum + r.montant, 0)
-                                  .toLocaleString("fr-FR")}{" "}
-                                €
-                              </span>
-                            </div>
-                          )}
-                          {rcm.length > 0 && (
-                            <div className="flex justify-between">
-                              <span>
-                                • RCM (Revenus de Capitaux Mobiliers) :
-                              </span>
-                              <span className="font-mono">
-                                {rcm
-                                  .reduce((sum, r) => sum + r.montant, 0)
-                                  .toLocaleString("fr-FR")}{" "}
-                                €
-                              </span>
-                            </div>
-                          )}
-                          {autres.length > 0 && (
-                            <div className="flex justify-between">
-                              <span>• Autres revenus :</span>
-                              <span className="font-mono">
-                                {autres
-                                  .reduce((sum, r) => sum + r.montant, 0)
-                                  .toLocaleString("fr-FR")}{" "}
-                                €
-                              </span>
-                            </div>
-                          )}
-                          <Separator className="my-2" />
-                          <div className="flex justify-between font-semibold">
-                            <span>TOTAL REVENUS BRUTS :</span>
-                            <span className="font-mono">
-                              {taxResult.revenuBrutGlobal.toLocaleString(
-                                "fr-FR",
-                              )}{" "}
-                              €
-                            </span>
-                          </div>
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                {/* Étape 2: Abattements par catégorie */}
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-sm text-muted-foreground">
-                    ÉTAPE 2 : APPLICATION DES ABATTEMENTS
-                  </h4>
-                  <div className="bg-muted/30 rounded-lg p-4 space-y-2 text-sm">
-                    {(() => {
-                      const abattementSalaires =
-                        calculerAbattementSalaires(revenus);
-                      const abattementBIC = calculerAbattementBIC(revenus);
-                      const abattementBNC = calculerAbattementBNC(revenus);
-                      const abattementBA = calculerAbattementBA(revenus);
-                      const abattementFonciers =
-                        calculerAbattementFonciers(revenus);
-                      const abattementRCM = calculerAbattementRCM(revenus);
-                      const autresRevenus = calculerAutresRevenus(revenus);
-
-                      return (
-                        <>
-                          <div className="space-y-1">
-                            <div className="flex justify-between">
-                              <span>
-                                • Salaires après abattement (10% ou frais réels)
-                                :
-                              </span>
-                              <span className="font-mono">
-                                {abattementSalaires.toLocaleString("fr-FR")} €
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>• BIC après abattement :</span>
-                              <span className="font-mono">
-                                {abattementBIC.toLocaleString("fr-FR")} €
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>
-                                • BNC après abattement (34% micro ou frais
-                                réels) :
-                              </span>
-                              <span className="font-mono">
-                                {abattementBNC.toLocaleString("fr-FR")} €
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>
-                                • BA après abattement (87% micro ou frais réels)
-                                :
-                              </span>
-                              <span className="font-mono">
-                                {abattementBA.toLocaleString("fr-FR")} €
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>• Revenus fonciers après abattement :</span>
-                              <span className="font-mono">
-                                {abattementFonciers.toLocaleString("fr-FR")} €
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>• RCM après abattement :</span>
-                              <span className="font-mono">
-                                {abattementRCM.toLocaleString("fr-FR")} €
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>• Autres revenus :</span>
-                              <span className="font-mono">
-                                {autresRevenus.toLocaleString("fr-FR")} €
-                              </span>
-                            </div>
-                          </div>
-                          <Separator className="my-2" />
-                          <div className="flex justify-between font-semibold">
-                            <span>REVENU NET GLOBAL AVANT DÉDUCTIONS :</span>
-                            <span className="font-mono">
-                              {(
-                                abattementSalaires +
-                                abattementBIC +
-                                abattementBNC +
-                                abattementBA +
-                                abattementFonciers +
-                                abattementRCM +
-                                autresRevenus
-                              ).toLocaleString("fr-FR")}{" "}
-                              €
-                            </span>
-                          </div>
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                {/* Étape 3: Déductions */}
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-sm text-muted-foreground">
-                    ÉTAPE 3 : DÉDUCTIONS SUR LE REVENU GLOBAL
-                  </h4>
-                  <div className="bg-muted/30 rounded-lg p-4 space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span>• Déductions fiscales appliquées :</span>
-                      <span className="font-mono">
-                        -{deductionsImpot.toLocaleString("fr-FR")} €
-                      </span>
-                    </div>
-                    <Separator className="my-2" />
-                    <div className="flex justify-between font-semibold">
-                      <span>REVENU NET IMPOSABLE :</span>
-                      <span className="font-mono">
-                        {taxResult.revenuNetGlobal.toLocaleString("fr-FR")} €
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Étape 4: Quotient familial */}
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-sm text-muted-foreground">
-                    ÉTAPE 4 : CALCUL DU QUOTIENT FAMILIAL
-                  </h4>
-                  <div className="bg-muted/30 rounded-lg p-4 space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span>• Situation familiale :</span>
-                      <span className="font-mono">{situationFamiliale}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>• Nombre d'enfants :</span>
-                      <span className="font-mono">{nombreEnfants}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>• Parts fiscales de base :</span>
-                      <span className="font-mono">
-                        {situationFamiliale === "Célibataire" ||
-                        situationFamiliale === "Veuf"
-                          ? 1
-                          : 2}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>• Parts supplémentaires (enfants) :</span>
-                      <span className="font-mono">
-                        {(
-                          nbParts -
-                          (situationFamiliale === "Célibataire" ||
-                          situationFamiliale === "Veuf"
-                            ? 1
-                            : 2)
-                        ).toFixed(1)}
-                      </span>
-                    </div>
-                    <Separator className="my-2" />
-                    <div className="flex justify-between font-semibold">
-                      <span>NOMBRE TOTAL DE PARTS :</span>
-                      <span className="font-mono">{nbParts}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>
-                        • Quotient familial (Revenu imposable / Parts) :
-                      </span>
-                      <span className="font-mono">
-                        {(taxResult.revenuNetGlobal / nbParts).toLocaleString(
-                          "fr-FR",
-                        )}{" "}
-                        €
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Étape 5: Barème progressif */}
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-sm text-muted-foreground">
-                    ÉTAPE 5 : APPLICATION DU BARÈME PROGRESSIF 2025
-                  </h4>
-                  <div className="bg-muted/30 rounded-lg p-4 space-y-2 text-sm">
-                    {(() => {
-                      const quotient = taxResult.revenuNetGlobal / nbParts;
-                      const tranches = [
-                        { min: 0, max: 11498, taux: 0 },
-                        { min: 11498, max: 29315, taux: 11 },
-                        { min: 29315, max: 83823, taux: 30 },
-                        { min: 83823, max: 180294, taux: 41 },
-                        { min: 180294, max: Infinity, taux: 45 },
-                      ];
-
-                      let impotParPart = 0;
-                      const details = tranches
-                        .map((tranche) => {
-                          const base = Math.min(
-                            Math.max(quotient - tranche.min, 0),
-                            tranche.max - tranche.min,
-                          );
-                          const impot = (base * tranche.taux) / 100;
-                          impotParPart += impot;
-                          return { tranche, base, impot };
-                        })
-                        .filter((d) => d.base > 0);
-
-                      return (
-                        <>
-                          <div className="space-y-1">
-                            {details.map((d, i) => (
-                              <div key={i} className="flex justify-between">
-                                <span>
-                                  • Tranche {d.tranche.taux}% (
-                                  {d.tranche.min.toLocaleString("fr-FR")} € -{" "}
-                                  {d.tranche.max === Infinity
-                                    ? "∞"
-                                    : d.tranche.max.toLocaleString(
-                                        "fr-FR",
-                                      )}{" "}
-                                  €) :
-                                </span>
-                                <span className="font-mono">
-                                  {d.base.toLocaleString("fr-FR")} € ×{" "}
-                                  {d.tranche.taux}% ={" "}
-                                  {d.impot.toLocaleString("fr-FR")} €
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                          <Separator className="my-2" />
-                          <div className="flex justify-between">
-                            <span>Impôt par part :</span>
-                            <span className="font-mono">
-                              {impotParPart.toLocaleString("fr-FR")} €
-                            </span>
-                          </div>
-                          <div className="flex justify-between font-semibold">
-                            <span>
-                              IMPÔT AVANT PLAFONNEMENT (
-                              {impotParPart.toLocaleString("fr-FR")} € ×{" "}
-                              {nbParts} parts) :
-                            </span>
-                            <span className="font-mono">
-                              {(impotParPart * nbParts).toLocaleString("fr-FR")}{" "}
-                              €
-                            </span>
-                          </div>
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                {/* Étape 6: Plafonnement du quotient familial */}
-                {taxResult.plafonnementFamilial && (
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-sm text-muted-foreground">
-                      ÉTAPE 6 : PLAFONNEMENT DU QUOTIENT FAMILIAL
-                    </h4>
-                    <div className="bg-orange-50 dark:bg-orange-950 rounded-lg p-4 space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span>
-                          • Avantage fiscal maximal par demi-part supplémentaire
-                          :
-                        </span>
-                        <span className="font-mono">1 759 €</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>• Dépassement du plafond :</span>
-                        <span className="font-mono text-orange-600">
-                          {taxResult.montantDepassement.toLocaleString("fr-FR")}{" "}
-                          €
-                        </span>
-                      </div>
-                      <Separator className="my-2" />
-                      <div className="flex justify-between font-semibold">
-                        <span>IMPÔT APRÈS PLAFONNEMENT :</span>
-                        <span className="font-mono">
-                          {taxResult.impotBrutFinal.toLocaleString("fr-FR")} €
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Étape 7: Décote */}
-                {taxResult.decote > 0 && (
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-sm text-muted-foreground">
-                      ÉTAPE 7 : APPLICATION DE LA DÉCOTE
-                    </h4>
-                    <div className="bg-green-50 dark:bg-green-950 rounded-lg p-4 space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span>
-                          • Seuil de décote (
-                          {situationFamiliale === "Célibataire" ||
-                          situationFamiliale === "Veuf"
-                            ? "célibataire"
-                            : "couple"}
-                          ) :
-                        </span>
-                        <span className="font-mono">
-                          {(situationFamiliale === "Célibataire" ||
-                          situationFamiliale === "Veuf"
-                            ? 1929
-                            : 3191
-                          ).toLocaleString("fr-FR")}{" "}
-                          €
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>• Montant de la décote :</span>
-                        <span className="font-mono text-green-600">
-                          -{taxResult.decote.toLocaleString("fr-FR")} €
-                        </span>
-                      </div>
-                      <Separator className="my-2" />
-                      <div className="flex justify-between font-semibold">
-                        <span>IMPÔT APRÈS DÉCOTE :</span>
-                        <span className="font-mono">
-                          {taxResult.impotNet.toLocaleString("fr-FR")} €
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Étape 8: Réductions et crédits d'impôt */}
-                {(reductionsImpot > 0 || creditImpot > 0) && (
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-sm text-muted-foreground">
-                      ÉTAPE 8 : RÉDUCTIONS ET CRÉDITS D'IMPÔT
-                    </h4>
-                    <div className="bg-muted/30 rounded-lg p-4 space-y-2 text-sm">
-                      {reductionsImpot > 0 && (
-                        <div className="flex justify-between">
-                          <span>• Réductions d'impôt :</span>
-                          <span className="font-mono text-green-600">
-                            -{reductionsImpot.toLocaleString("fr-FR")} €
-                          </span>
-                        </div>
-                      )}
-                      {creditImpot > 0 && (
-                        <div className="flex justify-between">
-                          <span>• Crédits d'impôt :</span>
-                          <span className="font-mono text-green-600">
-                            -{creditImpot.toLocaleString("fr-FR")} €
-                          </span>
-                        </div>
-                      )}
-                      <Separator className="my-2" />
-                      <div className="flex justify-between font-semibold">
-                        <span>IMPÔT APRÈS AVANTAGES :</span>
-                        <span className="font-mono">
-                          {Math.max(
-                            0,
-                            taxResult.impotNet - reductionsImpot - creditImpot,
-                          ).toLocaleString("fr-FR")}{" "}
-                          €
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Étape 9: CEHR */}
-                {taxResult.cehr > 0 && (
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-sm text-muted-foreground">
-                      ÉTAPE 9 : CONTRIBUTION EXCEPTIONNELLE (CEHR)
-                    </h4>
-                    <div className="bg-red-50 dark:bg-red-950 rounded-lg p-4 space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span>
-                          • Seuil d'application (
-                          {situationFamiliale === "Célibataire" ||
-                          situationFamiliale === "Veuf"
-                            ? "célibataire"
-                            : "couple"}
-                          ) :
-                        </span>
-                        <span className="font-mono">
-                          {(situationFamiliale === "Célibataire" ||
-                          situationFamiliale === "Veuf"
-                            ? 250000
-                            : 500000
-                          ).toLocaleString("fr-FR")}{" "}
-                          €
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>• Taux appliqué :</span>
-                        <span className="font-mono">
-                          {taxResult.revenuNetGlobal >
-                          (situationFamiliale === "Célibataire" ||
-                          situationFamiliale === "Veuf"
-                            ? 500000
-                            : 1000000)
-                            ? "4%"
-                            : "3%"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>• Montant de la CEHR :</span>
-                        <span className="font-mono text-red-600">
-                          +{taxResult.cehr.toLocaleString("fr-FR")} €
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Résultat final */}
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-sm text-muted-foreground">
-                    RÉSULTAT FINAL
-                  </h4>
-                  <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4 space-y-2">
-                    <div className="flex justify-between text-lg font-bold">
-                      <span>IMPÔT TOTAL À PAYER :</span>
-                      <span
-                        className={`font-mono ${taxResult.impotTotal < 0 ? "text-green-600" : "text-red-600"}`}
-                      >
-                        {taxResult.impotTotal.toLocaleString("fr-FR")} €
-                      </span>
-                    </div>
-                    <Separator className="my-3" />
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">
-                          Tranche marginale d'imposition
-                        </span>
-                        <p className="text-xl font-bold">{taxResult.tmi}%</p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">
-                          Taux moyen d'imposition
-                        </span>
-                        <p className="text-xl font-bold">
-                          {taxResult.tauxMoyen.toFixed(2)}%
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+              <div className="space-y-2">
+                <Label>Impôt total dû</Label>
+                <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
+                  {taxResult.impotTotal.toLocaleString("fr-FR", {
+                    style: "currency",
+                    currency: "EUR",
+                  })}
+                  {taxResult.impotTotal < 0 && (
+                    <span className="ml-2 text-sm font-normal">(remboursement)</span>
+                  )}
                 </div>
               </div>
+
             </CardContent>
           </Card>
         </div>

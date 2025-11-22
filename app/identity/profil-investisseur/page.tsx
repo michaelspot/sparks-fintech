@@ -419,9 +419,6 @@ export default function InvestorProfilePage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-semibold">Votre profil investisseur</h2>
-              <p className="text-sm text-muted-foreground">
-                Évaluation de votre profil pour des recommandations personnalisées
-              </p>
             </div>
             <Button onClick={() => setIsUserDialogOpen(true)} variant="outline" size="sm">
               <Edit3 className="w-4 h-4 mr-2" />
@@ -467,9 +464,6 @@ export default function InvestorProfilePage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-semibold">Profil investisseur du conjoint</h2>
-              <p className="text-sm text-muted-foreground">
-                Évaluation du profil de votre conjoint pour des recommandations adaptées
-              </p>
             </div>
             <Button onClick={() => setIsSpouseDialogOpen(true)} variant="outline" size="sm">
               <UserPlus className="w-4 h-4 mr-2" />

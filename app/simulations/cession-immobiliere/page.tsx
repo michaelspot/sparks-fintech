@@ -10,9 +10,9 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
-import { Home, Calculator, FileText, TrendingUp, ArrowRight } from "lucide-react"
+import { Calculator } from "lucide-react"
 import { calculCessionImmobiliere, CessionImmobiliereInputs, CessionImmobiliereResults } from "@/lib/cession-immobiliere"
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts"
+// Graphiques retirés pour simplifier l'interface
 import { ThemeToggle } from "@/components/theme-toggle"
 
 interface PatrimoineBien {
@@ -43,40 +43,6 @@ export default function CessionImmobilierePage() {
   const [resultats, setResultats] = useState<CessionImmobiliereResults | null>(null)
   const [biens, setBiens] = useState<PatrimoineBien[]>([])
 
-  // Couleurs pour les graphiques
-  const COLORS = {
-    impotIR: '#ef4444', // rouge
-    impotPS: '#f97316', // orange
-    surtaxe: '#dc2626', // rouge foncé
-    gainNet: '#22c55e', // vert
-    coutAcquisition: '#3b82f6', // bleu
-    impotTotal: '#ef4444' // rouge
-  }
-
-  // Préparer les données pour le graphique de répartition des impôts
-  const prepareImpotData = (resultats: CessionImmobiliereResults) => {
-    const data = []
-    if (resultats.impotIR > 0) {
-      data.push({ name: 'Impôt IR (19%)', value: resultats.impotIR, color: COLORS.impotIR })
-    }
-    if (resultats.impotPS > 0) {
-      data.push({ name: 'Prélèvements sociaux (17,2%)', value: resultats.impotPS, color: COLORS.impotPS })
-    }
-    if (resultats.surtaxePlusValue > 0) {
-      data.push({ name: 'Surtaxe plus-value', value: resultats.surtaxePlusValue, color: COLORS.surtaxe })
-    }
-    return data
-  }
-
-  // Préparer les données pour le graphique de répartition du prix de cession
-  const prepareCessionData = (resultats: CessionImmobiliereResults) => {
-    const gainNet = valeurCession - resultats.valeurAcquisitionAjustee - resultats.impotTotal
-    return [
-      { name: 'Gain net', value: Math.max(0, gainNet), color: COLORS.gainNet },
-      { name: 'Impôts totaux', value: resultats.impotTotal, color: COLORS.impotTotal },
-      { name: 'Coût d\'acquisition ajusté', value: resultats.valeurAcquisitionAjustee, color: COLORS.coutAcquisition }
-    ]
-  }
 
   // Charger les données depuis localStorage
   const loadDataFromLocalStorage = useCallback(() => {
@@ -363,17 +329,6 @@ export default function CessionImmobilierePage() {
                       />
                     </div>
                   </div>
-
-                  {valeurAcquisition > 0 && (
-                    <div className="p-3 bg-muted rounded-lg">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">Valeur d'acquisition ajustée:</span>
-                        <span className="font-bold text-lg">
-                          {formatCurrency(valeurAcquisition + fraisNotaire + fraisTravaux)}
-                        </span>
-                      </div>
-                    </div>
-                  )}
                 </div>
                 
                 {/* Section cession */}
@@ -408,167 +363,122 @@ export default function CessionImmobilierePage() {
           {/* COLONNE DROITE - RÉSULTATS */}
           <div className="space-y-4">
             {resultats ? (
-              <>
-                {/* Résultats principaux avec métriques clés */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Résultats de la simulation
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 gap-4 mb-6">
-                      <div className="text-center p-4 bg-blue-50 rounded-lg">
-                        <div className="text-2xl font-bold text-blue-600">
-                          {formatCurrency(resultats.plusValueBrute)}
-                        </div>
-                        <div className="text-sm text-muted-foreground">Plus-value brute</div>
-                      </div>
-                      <div className="text-center p-4 bg-red-50 rounded-lg">
-                        <div className="text-2xl font-bold text-red-600">
-                          {formatCurrency(resultats.impotTotal)}
-                        </div>
-                        <div className="text-sm text-muted-foreground">Impôts totaux</div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Résultats de la simulation</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Plus-value brute</Label>
+                      <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
+                        {formatCurrency(resultats.plusValueBrute)}
                       </div>
                     </div>
-                    
-                    <div className="grid grid-cols-2 gap-4 mb-6">
-                      <div className="text-center p-4 bg-green-50 rounded-lg">
-                        <div className="text-2xl font-bold text-green-600">
-                          {formatCurrency(valeurCession - resultats.valeurAcquisitionAjustee - resultats.impotTotal)}
-                        </div>
-                        <div className="text-sm text-muted-foreground">Gain net</div>
-                      </div>
-                      <div className="text-center p-4 bg-gray-50 rounded-lg">
-                        <div className="text-2xl font-bold text-gray-600">
-                          {resultats.nombreAnneesDetention} ans
-                        </div>
-                        <div className="text-sm text-muted-foreground">Détention</div>
+                    <div className="space-y-2">
+                      <Label>Valeur d'acquisition ajustée</Label>
+                      <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
+                        {formatCurrency(resultats.valeurAcquisitionAjustee)}
                       </div>
                     </div>
+                  </div>
 
-                    <div className="grid grid-cols-2 gap-4 mb-6">
-                      <div className="text-center p-3 bg-purple-50 rounded-lg">
-                        <div className="text-lg font-bold text-purple-600">
-                          {formatPercentage(resultats.rendementGlobal)}
-                        </div>
-                        <div className="text-sm text-muted-foreground">Rendement global</div>
-                      </div>
-                      <div className="text-center p-3 bg-purple-50 rounded-lg">
-                        <div className="text-lg font-bold text-purple-600">
-                          {formatPercentage(resultats.rendementAnnualise)}
-                        </div>
-                        <div className="text-sm text-muted-foreground">Rendement annualisé</div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Durée de détention</Label>
+                      <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
+                        {resultats.nombreAnneesDetention} ans
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                    <div className="space-y-2">
+                      <Label>Abattement IR</Label>
+                      <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
+                        {formatPercentage(resultats.abattementIR)}
+                      </div>
+                    </div>
+                  </div>
 
-                {/* Graphique de répartition des impôts */}
-                {resultats.impotTotal > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Répartition des impôts ({formatCurrency(resultats.impotTotal)})
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={prepareImpotData(resultats)}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={40}
-                              outerRadius={80}
-                              paddingAngle={2}
-                              dataKey="value"
-                            >
-                              {prepareImpotData(resultats).map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
-                              ))}
-                            </Pie>
-                            <Tooltip 
-                              formatter={(value: number) => [formatCurrency(value), '']}
-                              labelStyle={{ color: '#374151' }}
-                            />
-                            <Legend />
-                          </PieChart>
-                        </ResponsiveContainer>
+                  <Separator />
+
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Détail des impôts</h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center p-3 border rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-2 h-2 bg-red-500 rounded-full" />
+                          <div>
+                            <div className="font-medium">Impôt IR (19%)</div>
+                            <div className="text-sm text-muted-foreground">
+                              Abattement {formatPercentage(resultats.abattementIR)}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="font-medium">
+                          {formatCurrency(resultats.impotIR)}
+                        </div>
                       </div>
                       
-                      {/* Détail des impôts */}
-                      <div className="mt-4 space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span>Impôt IR (19%) - Abattement {formatPercentage(resultats.abattementIR)}</span>
-                          <span className="font-medium text-red-600">{formatCurrency(resultats.impotIR)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Prélèvements sociaux (17,2%) - Abattement {formatPercentage(resultats.abattementPS)}</span>
-                          <span className="font-medium text-orange-600">{formatCurrency(resultats.impotPS)}</span>
-                        </div>
-                        {resultats.surtaxePlusValue > 0 && (
-                          <div className="flex justify-between">
-                            <span>Surtaxe plus-value</span>
-                            <span className="font-medium text-red-700">{formatCurrency(resultats.surtaxePlusValue)}</span>
+                      <div className="flex justify-between items-center p-3 border rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-2 h-2 bg-orange-500 rounded-full" />
+                          <div>
+                            <div className="font-medium">Prélèvements sociaux (17,2%)</div>
+                            <div className="text-sm text-muted-foreground">
+                              Abattement {formatPercentage(resultats.abattementPS)}
+                            </div>
                           </div>
-                        )}
+                        </div>
+                        <div className="font-medium">
+                          {formatCurrency(resultats.impotPS)}
+                        </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
 
-                {/* Graphique de répartition du prix de cession */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Répartition du prix de cession ({formatCurrency(valeurCession)})
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={prepareCessionData(resultats)}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={40}
-                            outerRadius={80}
-                            paddingAngle={2}
-                            dataKey="value"
-                          >
-                            {prepareCessionData(resultats).map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip 
-                            formatter={(value: number) => [formatCurrency(value), '']}
-                            labelStyle={{ color: '#374151' }}
-                          />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
+                      {resultats.surtaxePlusValue > 0 && (
+                        <div className="flex justify-between items-center p-3 border rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="w-2 h-2 bg-red-700 rounded-full" />
+                            <div>
+                              <div className="font-medium">Surtaxe plus-value</div>
+                            </div>
+                          </div>
+                          <div className="font-medium">
+                            {formatCurrency(resultats.surtaxePlusValue)}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    
-                    {/* Détail de la répartition */}
-                    <div className="mt-4 space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span>Coût d'acquisition ajusté</span>
-                        <span className="font-medium text-blue-600">{formatCurrency(resultats.valeurAcquisitionAjustee)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Impôts totaux ({formatPercentage(resultats.poidsImpotSurPVBrute)} de la PV)</span>
-                        <span className="font-medium text-red-600">{formatCurrency(resultats.impotTotal)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Gain net après impôts</span>
-                        <span className="font-medium text-green-600">
-                          {formatCurrency(Math.max(0, valeurCession - resultats.valeurAcquisitionAjustee - resultats.impotTotal))}
-                        </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Impôts totaux</Label>
+                    <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
+                      {formatCurrency(resultats.impotTotal)}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Rendement global</Label>
+                      <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
+                        {formatPercentage(resultats.rendementGlobal)}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              </>
+                    <div className="space-y-2">
+                      <Label>Rendement annualisé</Label>
+                      <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
+                        {formatPercentage(resultats.rendementAnnualise)}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Gain net après impôts</Label>
+                    <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
+                      {formatCurrency(Math.max(0, valeurCession - resultats.valeurAcquisitionAjustee - resultats.impotTotal))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             ) : (
               <Card>
                 <CardContent className="pt-6">

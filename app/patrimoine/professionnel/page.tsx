@@ -557,7 +557,7 @@ export default function ProfessionalPatrimonyPage() {
                       </div>
                       <div className="flex items-center space-x-4">
                         <div className="flex items-center space-x-2">
-                          <Building className="w-4 h-4 text-purple-500" />
+                          <Building className="w-4 h-4 text-blue-500" />
                           <span className="text-sm font-medium">Transmission: {asset.willToTransfer}</span>
                         </div>
                         <div className="flex space-x-2">

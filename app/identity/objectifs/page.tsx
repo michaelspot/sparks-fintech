@@ -134,9 +134,6 @@ export default function ObjectivesPage() {
         <Card>
           <CardHeader>
             <CardTitle>Définition de vos objectifs</CardTitle>
-            <CardDescription>
-              Sélectionnez vos objectifs financiers et précisez votre horizon de placement pour chacun.
-            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
