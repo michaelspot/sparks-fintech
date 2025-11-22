@@ -137,7 +137,7 @@ const data = {
           icon: Building,
         },
         {
-          title: "DMTG - Succession",
+          title: "Succession",
           url: "/simulations/dmtg",
           icon: FileText,
         },
