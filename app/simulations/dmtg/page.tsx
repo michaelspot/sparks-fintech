@@ -85,8 +85,10 @@ interface SuccessionInputs {
   children: Child[]
   commonAssetsValue: number
   personalAssetsValue: number
+  survivorPersonalAssetsValue: number
   debts: number
   spouseOption: string
+  scenario: "premier" | "deuxieme"
 }
 
 interface SuccessionResults {
@@ -208,16 +210,18 @@ function calculerSuccession(inputs: SuccessionInputs): SuccessionResults {
     children,
     commonAssetsValue,
     personalAssetsValue,
+    survivorPersonalAssetsValue,
     debts,
     spouseOption,
     survivingSpouseAge,
+    scenario
   } = inputs
 
-  // ===== ÉTAPE 1 : LIQUIDATION DU RÉGIME MATRIMONIAL =====
+  // ===== LIQUIDATION DU RÉGIME MATRIMONIAL =====
+  // Base commune : séparation des biens communs
   let communityAssets = 0
   let communitySharePerPerson = 0
-  let personalAssets = personalAssetsValue
-
+  
   if (matrimonialRegime.includes("communaute") || matrimonialRegime === "indivision") {
     // Régime communautaire ou indivision (PACS)
     communityAssets = commonAssetsValue - debts
@@ -228,122 +232,235 @@ function calculerSuccession(inputs: SuccessionInputs): SuccessionResults {
     communitySharePerPerson = 0
   }
 
-  const totalSuccessionAssets = communitySharePerPerson + personalAssets
+  // ===== LOGIQUE SELON SCÉNARIO =====
+  if (scenario === "premier") {
+    const personalAssets = personalAssetsValue
+    const totalSuccessionAssets = communitySharePerPerson + personalAssets
 
-  // ===== ÉTAPE 2 : DÉVOLUTION SUCCESSORALE =====
-  const numberOfChildren = children.length
-  let spouseTheoriticalRights = ""
-  let spouseFiscalValue = 0
-  const spouseTaxToPay = 0 // Loi TEPA : Conjoint exonéré
+    // DÉVOLUTION SUCCESSORALE
+    const numberOfChildren = children.length
+    let spouseTheoriticalRights = ""
+    let spouseFiscalValue = 0
+    const spouseTaxToPay = 0 // Loi TEPA : Conjoint exonéré
 
-  // Déterminer les droits du conjoint
-  const hasNonCommonChildren = children.some(
-    (child) => child.parentage === "propre_parent1" || child.parentage === "propre_parent2"
-  )
+    // Déterminer les droits du conjoint
+    const hasNonCommonChildren = children.some(
+      (child) => child.parentage === "propre_parent1" || child.parentage === "propre_parent2"
+    )
 
-  if (hasNonCommonChildren && !inputs.hasDDV) {
-    // Enfants non communs sans DDV => 1/4 PP imposé
-    spouseTheoriticalRights = "1/4 en pleine propriété (imposé par la loi)"
-    spouseFiscalValue = totalSuccessionAssets * 0.25
-  } else {
-    // Choix du conjoint
-    if (spouseOption === "usufruit-total") {
-      spouseTheoriticalRights = "100% en usufruit"
-      const pourcentageUsufruit = calculerPourcentageUsufruit(survivingSpouseAge)
-      spouseFiscalValue = totalSuccessionAssets * pourcentageUsufruit
-    } else if (spouseOption === "quart-pp") {
-      spouseTheoriticalRights = "1/4 en pleine propriété"
+    if (hasNonCommonChildren && !inputs.hasDDV) {
+      // Enfants non communs sans DDV => 1/4 PP imposé
+      spouseTheoriticalRights = "1/4 en pleine propriété (imposé par la loi)"
       spouseFiscalValue = totalSuccessionAssets * 0.25
-    } else if (spouseOption === "usufruit-partiel") {
-      spouseTheoriticalRights = "1/4 PP + 3/4 US"
-      const pourcentageUsufruit = calculerPourcentageUsufruit(survivingSpouseAge)
-      spouseFiscalValue = totalSuccessionAssets * 0.25 + totalSuccessionAssets * 0.75 * pourcentageUsufruit
-    } else if (spouseOption === "quotite-disponible") {
-      spouseTheoriticalRights = "Quotité disponible en pleine propriété"
-      // Quotité disponible = 1 - réserve des enfants
-      // Réserve : 1/2 si 1 enfant, 2/3 si 2 enfants, 3/4 si 3+ enfants
-      let reserve = 0.5
-      if (numberOfChildren === 2) reserve = 2 / 3
-      if (numberOfChildren >= 3) reserve = 0.75
-      const quotiteDisponible = 1 - reserve
-      spouseFiscalValue = totalSuccessionAssets * quotiteDisponible
+    } else {
+      // Choix du conjoint
+      if (spouseOption === "usufruit-total") {
+        spouseTheoriticalRights = "100% en usufruit"
+        const pourcentageUsufruit = calculerPourcentageUsufruit(survivingSpouseAge)
+        spouseFiscalValue = totalSuccessionAssets * pourcentageUsufruit
+      } else if (spouseOption === "quart-pp") {
+        spouseTheoriticalRights = "1/4 en pleine propriété"
+        spouseFiscalValue = totalSuccessionAssets * 0.25
+      } else if (spouseOption === "usufruit-partiel") {
+        spouseTheoriticalRights = "1/4 PP + 3/4 US"
+        const pourcentageUsufruit = calculerPourcentageUsufruit(survivingSpouseAge)
+        spouseFiscalValue = totalSuccessionAssets * 0.25 + totalSuccessionAssets * 0.75 * pourcentageUsufruit
+      } else if (spouseOption === "quotite-disponible") {
+        spouseTheoriticalRights = "Quotité disponible en pleine propriété"
+        let reserve = 0.5
+        if (numberOfChildren === 2) reserve = 2 / 3
+        if (numberOfChildren >= 3) reserve = 0.75
+        const quotiteDisponible = 1 - reserve
+        spouseFiscalValue = totalSuccessionAssets * quotiteDisponible
+      }
     }
-  }
 
-  // Enfants : reste de l'actif successoral
-  const childrenTotalInheritance = totalSuccessionAssets - spouseFiscalValue
-  const inheritancePerChild = numberOfChildren > 0 ? childrenTotalInheritance / numberOfChildren : 0
+    const childrenTotalInheritance = totalSuccessionAssets - spouseFiscalValue
+    const inheritancePerChild = numberOfChildren > 0 ? childrenTotalInheritance / numberOfChildren : 0
 
-  // ===== ÉTAPE 3 : CALCUL DES DROITS PAR ENFANT =====
-  const abatementPerChild = 100000
-  const taxableBasePerChild = Math.max(0, inheritancePerChild - abatementPerChild)
-  const taxAmountPerChild = calculerDroitsSuccession(taxableBasePerChild)
-  const totalTaxForChildren = taxAmountPerChild * numberOfChildren
+    const abatementPerChild = 100000
+    const taxableBasePerChild = Math.max(0, inheritancePerChild - abatementPerChild)
+    const taxAmountPerChild = calculerDroitsSuccession(taxableBasePerChild)
+    const totalTaxForChildren = taxAmountPerChild * numberOfChildren
 
-  // ===== ÉTAPE 4 : SYNTHÈSE =====
-  const totalAssetsTransmitted = totalSuccessionAssets
-  const totalSuccessionTax = totalTaxForChildren
-  const netReceivedByHeirs = totalAssetsTransmitted - totalSuccessionTax
+    const totalAssetsTransmitted = totalSuccessionAssets
+    const totalSuccessionTax = totalTaxForChildren
+    const netReceivedByHeirs = totalAssetsTransmitted - totalSuccessionTax
 
-  // ===== CONSTRUCTION DES DÉTAILS =====
-  const details = [
-    { label: "LIQUIDATION DU RÉGIME MATRIMONIAL", value: "", highlight: true },
-    { label: "Actif de communauté", value: formatCurrency(communityAssets) },
-    { label: "Part de communauté (50%)", value: formatCurrency(communitySharePerPerson) },
-    { label: "Actifs propres du défunt", value: formatCurrency(personalAssets) },
-    { label: "ACTIF SUCCESSORAL TAXABLE", value: formatCurrency(totalSuccessionAssets), highlight: true },
-    { label: "", value: "" },
-    { label: "DÉVOLUTION SUCCESSORALE", value: "", highlight: true },
-    { label: "Droits du conjoint survivant", value: spouseTheoriticalRights },
-    { label: "Valeur fiscale du conjoint", value: formatCurrency(spouseFiscalValue) },
-    { label: "Droits à payer (conjoint)", value: "0 € (Loi TEPA)" },
-    { label: "", value: "" },
-    { label: "Part des enfants", value: formatCurrency(childrenTotalInheritance) },
-    { label: "Nombre d'enfants", value: numberOfChildren.toString() },
-    { label: "Part par enfant", value: formatCurrency(inheritancePerChild) },
-    { label: "", value: "" },
-    { label: "CALCUL DES DROITS (PAR ENFANT)", value: "", highlight: true },
-    { label: "Part brute", value: formatCurrency(inheritancePerChild) },
-    { label: "Abattement personnel", value: `-${formatCurrency(abatementPerChild)}` },
-    { label: "Base taxable", value: formatCurrency(taxableBasePerChild) },
-    { label: "Droits dus par enfant", value: formatCurrency(taxAmountPerChild), highlight: true },
-    { label: "", value: "" },
-    { label: "SYNTHÈSE", value: "", highlight: true },
-    { label: "Total actif transmis", value: formatCurrency(totalAssetsTransmitted) },
-    { label: "Total droits de succession", value: formatCurrency(totalSuccessionTax) },
-    { label: "Net perçu par les héritiers", value: formatCurrency(netReceivedByHeirs), highlight: true },
-  ]
+    const details = [
+      { label: "LIQUIDATION DU RÉGIME MATRIMONIAL", value: "", highlight: true },
+      { label: "Actif de communauté", value: formatCurrency(communityAssets) },
+      { label: "Part de communauté (50%)", value: formatCurrency(communitySharePerPerson) },
+      { label: "Actifs propres du défunt", value: formatCurrency(personalAssets) },
+      { label: "ACTIF SUCCESSORAL TAXABLE", value: formatCurrency(totalSuccessionAssets), highlight: true },
+      { label: "", value: "" },
+      { label: "DÉVOLUTION SUCCESSORALE", value: "", highlight: true },
+      { label: "Droits du conjoint survivant", value: spouseTheoriticalRights },
+      { label: "Valeur fiscale du conjoint", value: formatCurrency(spouseFiscalValue) },
+      { label: "Droits à payer (conjoint)", value: "0 € (Loi TEPA)" },
+      { label: "", value: "" },
+      { label: "Part des enfants", value: formatCurrency(childrenTotalInheritance) },
+      { label: "Nombre d'enfants", value: numberOfChildren.toString() },
+      { label: "Part par enfant", value: formatCurrency(inheritancePerChild) },
+      { label: "", value: "" },
+      { label: "CALCUL DES DROITS (PAR ENFANT)", value: "", highlight: true },
+      { label: "Part brute", value: formatCurrency(inheritancePerChild) },
+      { label: "Abattement personnel", value: `-${formatCurrency(abatementPerChild)}` },
+      { label: "Base taxable", value: formatCurrency(taxableBasePerChild) },
+      { label: "Droits dus par enfant", value: formatCurrency(taxAmountPerChild), highlight: true },
+      { label: "", value: "" },
+      { label: "SYNTHÈSE", value: "", highlight: true },
+      { label: "Total actif transmis", value: formatCurrency(totalAssetsTransmitted) },
+      { label: "Total droits de succession", value: formatCurrency(totalSuccessionTax) },
+      { label: "Net perçu par les héritiers", value: formatCurrency(netReceivedByHeirs), highlight: true },
+    ]
 
-  return {
-    liquidation: {
-      communityAssets,
-      communitySharePerPerson,
-      personalAssets,
-      totalSuccessionAssets,
-    },
-    devolution: {
-      spouse: {
-        theoreticalRights: spouseTheoriticalRights,
-        fiscalValue: spouseFiscalValue,
-        taxToPay: spouseTaxToPay,
+    return {
+      liquidation: {
+        communityAssets,
+        communitySharePerPerson,
+        personalAssets,
+        totalSuccessionAssets,
       },
-      children: {
-        totalInheritance: childrenTotalInheritance,
-        inheritancePerChild,
+      devolution: {
+        spouse: {
+          theoreticalRights: spouseTheoriticalRights,
+          fiscalValue: spouseFiscalValue,
+          taxToPay: spouseTaxToPay,
+        },
+        children: {
+          totalInheritance: childrenTotalInheritance,
+          inheritancePerChild,
+        },
       },
-    },
-    rightsPerChild: {
-      grossShare: inheritancePerChild,
-      abatement: abatementPerChild,
-      taxableBase: taxableBasePerChild,
-      taxAmount: taxAmountPerChild,
-    },
-    summary: {
-      totalAssetsTransmitted,
-      totalSuccessionTax,
-      netReceivedByHeirs,
-    },
-    details,
+      rightsPerChild: {
+        grossShare: inheritancePerChild,
+        abatement: abatementPerChild,
+        taxableBase: taxableBasePerChild,
+        taxAmount: taxAmountPerChild,
+      },
+      summary: {
+        totalAssetsTransmitted,
+        totalSuccessionTax,
+        netReceivedByHeirs,
+        details,
+      },
+      details,
+    }
+  } else {
+    // ===== SCÉNARIO 2 : DEUXIÈME DÉCÈS =====
+    
+    // 1. Simulation du 1er décès pour déterminer l'héritage PP du survivant
+    const personalAssets1 = personalAssetsValue // Biens propres du 1er défunt
+    const totalSuccessionAssets1 = communitySharePerPerson + personalAssets1
+    
+    let heritageRecuPP = 0
+    let texteHeritage = ""
+
+    const hasNonCommonChildren = children.some(
+      (child) => child.parentage === "propre_parent1" || child.parentage === "propre_parent2"
+    )
+
+    // Logique simplifiée de récupération de la PP (identique au 1er décès)
+    if (hasNonCommonChildren && !inputs.hasDDV) {
+      heritageRecuPP = totalSuccessionAssets1 * 0.25
+      texteHeritage = "1/4 PP (Légal)"
+    } else {
+      if (spouseOption === "usufruit-total") {
+        heritageRecuPP = 0
+        texteHeritage = "0% PP (100% US)"
+      } else if (spouseOption === "quart-pp") {
+        heritageRecuPP = totalSuccessionAssets1 * 0.25
+        texteHeritage = "1/4 PP"
+      } else if (spouseOption === "usufruit-partiel") {
+        heritageRecuPP = totalSuccessionAssets1 * 0.25
+        texteHeritage = "1/4 PP (+ 3/4 US)"
+      } else if (spouseOption === "quotite-disponible") {
+        let reserve = 0.5
+        if (children.length === 2) reserve = 2 / 3
+        if (children.length >= 3) reserve = 0.75
+        const quotiteDisponible = 1 - reserve
+        heritageRecuPP = totalSuccessionAssets1 * quotiteDisponible
+        texteHeritage = "Quotité Disponible PP"
+      }
+    }
+
+    // 2. Reconstitution du patrimoine du 2ème défunt (le survivant)
+    const survivorOwnAssets = survivorPersonalAssetsValue
+    const totalSuccessionAssets2 = survivorOwnAssets + communitySharePerPerson + heritageRecuPP
+
+    // 3. Dévolution (Tout aux enfants)
+    const numberOfChildren = children.length
+    const childrenTotalInheritance = totalSuccessionAssets2
+    const inheritancePerChild = numberOfChildren > 0 ? childrenTotalInheritance / numberOfChildren : 0
+
+    // 4. Droits de succession
+    const abatementPerChild = 100000
+    const taxableBasePerChild = Math.max(0, inheritancePerChild - abatementPerChild)
+    const taxAmountPerChild = calculerDroitsSuccession(taxableBasePerChild)
+    const totalTaxForChildren = taxAmountPerChild * numberOfChildren
+
+    const totalAssetsTransmitted = totalSuccessionAssets2
+    const totalSuccessionTax = totalTaxForChildren
+    const netReceivedByHeirs = totalAssetsTransmitted - totalSuccessionTax
+
+    const details = [
+      { label: "RECONSTITUTION DU PATRIMOINE DU SURVIVANT", value: "", highlight: true },
+      { label: "Ses biens propres initiaux", value: formatCurrency(survivorOwnAssets) },
+      { label: "Sa part de communauté (50%)", value: formatCurrency(communitySharePerPerson) },
+      { label: "Héritage reçu en PP (1er décès)", value: formatCurrency(heritageRecuPP) },
+      { label: `Option 1er décès: ${texteHeritage}`, value: "" },
+      { label: "ACTIF SUCCESSORAL TAXABLE", value: formatCurrency(totalSuccessionAssets2), highlight: true },
+      { label: "", value: "" },
+      { label: "DÉVOLUTION (ENFANTS UNIQUEMENT)", value: "", highlight: true },
+      { label: "Part totale des enfants", value: formatCurrency(childrenTotalInheritance) },
+      { label: "Nombre d'enfants", value: numberOfChildren.toString() },
+      { label: "Part par enfant", value: formatCurrency(inheritancePerChild) },
+      { label: "", value: "" },
+      { label: "CALCUL DES DROITS (PAR ENFANT)", value: "", highlight: true },
+      { label: "Part brute", value: formatCurrency(inheritancePerChild) },
+      { label: "Abattement personnel", value: `-${formatCurrency(abatementPerChild)}` },
+      { label: "Base taxable", value: formatCurrency(taxableBasePerChild) },
+      { label: "Droits dus par enfant", value: formatCurrency(taxAmountPerChild), highlight: true },
+      { label: "", value: "" },
+      { label: "SYNTHÈSE 2ÈME DÉCÈS", value: "", highlight: true },
+      { label: "Total actif transmis", value: formatCurrency(totalAssetsTransmitted) },
+      { label: "Total droits de succession", value: formatCurrency(totalSuccessionTax) },
+      { label: "Net perçu par les enfants", value: formatCurrency(netReceivedByHeirs), highlight: true },
+    ]
+
+    return {
+      liquidation: {
+        communityAssets,
+        communitySharePerPerson,
+        personalAssets: survivorOwnAssets,
+        totalSuccessionAssets: totalSuccessionAssets2,
+      },
+      devolution: {
+        spouse: {
+          theoreticalRights: "Décédé(e)",
+          fiscalValue: 0,
+          taxToPay: 0,
+        },
+        children: {
+          totalInheritance: childrenTotalInheritance,
+          inheritancePerChild,
+        },
+      },
+      rightsPerChild: {
+        grossShare: inheritancePerChild,
+        abatement: abatementPerChild,
+        taxableBase: taxableBasePerChild,
+        taxAmount: taxAmountPerChild,
+      },
+      summary: {
+        totalAssetsTransmitted,
+        totalSuccessionTax,
+        netReceivedByHeirs,
+        details,
+      },
+      details,
+    }
   }
 }
 
@@ -457,9 +574,11 @@ export default function DMTGPage() {
   const calculateAssetValues = useCallback(() => {
     let commonAssets = 0
     let personalAssets = 0
+    let survivorPersonalAssets = 0
     let debts = 0
 
     const ownerField = deceased === "vous" ? "Vous" : "Votre conjoint"
+    const survivorField = deceased === "vous" ? "Votre conjoint" : "Vous"
 
     // Biens immobiliers
     properties.forEach((property) => {
@@ -467,7 +586,10 @@ export default function DMTGPage() {
         commonAssets += property.netValue
       } else if (property.ownedBy === ownerField) {
         personalAssets += property.netValue
+      } else if (property.ownedBy === survivorField) {
+        survivorPersonalAssets += property.netValue
       }
+
       if (property.attachedDebts) {
         debts += property.attachedDebts
       }
@@ -479,6 +601,8 @@ export default function DMTGPage() {
         commonAssets += asset.realValue
       } else if (asset.ownedBy === ownerField) {
         personalAssets += asset.realValue
+      } else if (asset.ownedBy === survivorField) {
+        survivorPersonalAssets += asset.realValue
       }
     })
 
@@ -488,29 +612,33 @@ export default function DMTGPage() {
         commonAssets += asset.valuation
       } else if (asset.ownership === ownerField) {
         personalAssets += asset.valuation
+      } else if (asset.ownership === survivorField) {
+        survivorPersonalAssets += asset.valuation
       }
     })
 
-    return { commonAssets, personalAssets, debts }
+    return { commonAssets, personalAssets, survivorPersonalAssets, debts }
   }, [properties, financialAssets, professionalAssets, deceased])
 
   // Calculer automatiquement les résultats quand les données changent
   useEffect(() => {
     if (personalInfo && ageAtDeath > 0 && survivingSpouseAge > 0) {
-      const { commonAssets, personalAssets, debts } = calculateAssetValues()
+      const { commonAssets, personalAssets, survivorPersonalAssets, debts } = calculateAssetValues()
 
       const inputs: SuccessionInputs = {
         deceased,
         deathDate,
-        ageAtDeath,
-        survivingSpouseAge,
+        ageAtDeath, // 1er décès
+        survivingSpouseAge, // 1er décès
         matrimonialRegime: personalInfo.matrimonialRegime || "",
         hasDDV: personalInfo.lastWillDonation === "oui",
         children: personalInfo.children || [],
         commonAssetsValue: commonAssets,
         personalAssetsValue: personalAssets,
+        survivorPersonalAssetsValue: survivorPersonalAssets,
         debts,
         spouseOption,
+        scenario: deathScenario
       }
 
       const nouveauxResultats = calculerSuccession(inputs)
@@ -526,6 +654,7 @@ export default function DMTGPage() {
     ageAtDeath,
     survivingSpouseAge,
     spouseOption,
+    deathScenario,
     calculateAssetValues,
     saveDataToLocalStorage,
   ])
@@ -583,7 +712,7 @@ export default function DMTGPage() {
   const spouseOptions = getSpouseOptions()
 
   // Informations patrimoniales
-  const { commonAssets, personalAssets, debts } = calculateAssetValues()
+  const { commonAssets, personalAssets, survivorPersonalAssets, debts } = calculateAssetValues()
 
   return (
     <SidebarInset>
@@ -621,13 +750,6 @@ export default function DMTGPage() {
                 <CardTitle>Données de la succession</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Onglets Premier décès / Deuxième décès */}
-                <Tabs value={deathScenario} onValueChange={(value) => setDeathScenario(value as "premier" | "deuxieme")}>
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="premier">Premier décès</TabsTrigger>
-                    <TabsTrigger value="deuxieme">Deuxième décès</TabsTrigger>
-                  </TabsList>
-                </Tabs>
 
                 {/* Situation familiale */}
                 {personalInfo && (
@@ -645,8 +767,8 @@ export default function DMTGPage() {
                               <SelectValue placeholder="Sélectionner..." />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="communaute-reduite">Communauté réduite aux acquêts (depuis 1er février 1966)</SelectItem>
-                              <SelectItem value="communaute-biens">Communauté de biens (avant 1er février 1966)</SelectItem>
+                              <SelectItem value="communaute-reduite">Communauté réduite aux acquêts</SelectItem>
+                              <SelectItem value="communaute-biens">Communauté de biens (avant 1966)</SelectItem>
                               <SelectItem value="separation-biens">Séparation de biens</SelectItem>
                               <SelectItem value="participation-acquets">Participation aux acquêts</SelectItem>
                               <SelectItem value="communaute-universelle">Communauté universelle</SelectItem>
@@ -681,7 +803,6 @@ export default function DMTGPage() {
                             let updatedChildren = [...currentChildren]
                             
                             if (newCount > currentChildren.length) {
-                              // Ajouter des enfants
                               for (let i = currentChildren.length; i < newCount; i++) {
                                 updatedChildren.push({
                                   firstName: `Enfant ${i + 1}`,
@@ -691,7 +812,6 @@ export default function DMTGPage() {
                                 })
                               }
                             } else if (newCount < currentChildren.length) {
-                              // Supprimer des enfants
                               updatedChildren = updatedChildren.slice(0, newCount)
                             }
                             
@@ -725,10 +845,11 @@ export default function DMTGPage() {
 
                 {/* Paramètres du décès */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Paramètres du décès</h3>
+                  <h3 className="text-lg font-medium">Paramètres du 1er décès</h3>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="deceased">Qui décède ?</Label>
+                      <Label htmlFor="deceased">Qui décède en premier ?</Label>
                       <Select value={deceased} onValueChange={(value) => setDeceased(value as "vous" | "conjoint")}>
                         <SelectTrigger>
                           <SelectValue />
@@ -755,7 +876,7 @@ export default function DMTGPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="ageAtDeath">Âge au décès</Label>
+                      <Label htmlFor="ageAtDeath">Âge au décès (1er)</Label>
                       <Input
                         id="ageAtDeath"
                         type="number"
@@ -766,7 +887,7 @@ export default function DMTGPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="survivingSpouseAge">Âge du conjoint survivant</Label>
+                      <Label htmlFor="survivingSpouseAge">Âge du conjoint (au 1er décès)</Label>
                       <Input
                         id="survivingSpouseAge"
                         type="number"
@@ -779,7 +900,7 @@ export default function DMTGPage() {
                   </div>
                   {personalInfo && spouseOptions.length > 0 && (
                     <div className="space-y-2">
-                      <Label htmlFor="spouseOption">Option choisie</Label>
+                      <Label htmlFor="spouseOption">Option choisie au 1er décès</Label>
                       {spouseOptions.length === 1 ? (
                         <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm">
                           {spouseOptions[0].label}
@@ -815,16 +936,16 @@ export default function DMTGPage() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label>Actifs propres du défunt</Label>
+                      <Label>Actifs propres ({deceased === "vous" ? "Vous" : "Conjoint"})</Label>
                       <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
                         {formatCurrency(personalAssets)}
                       </div>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label>Dettes rattachées</Label>
+                    <Label>Actifs propres ({deceased === "vous" ? "Conjoint" : "Vous"})</Label>
                     <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
-                      {formatCurrency(debts)}
+                      {formatCurrency(survivorPersonalAssets)}
                     </div>
                   </div>
                 </div>
@@ -876,6 +997,13 @@ export default function DMTGPage() {
                   </Dialog>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                  <Tabs value={deathScenario} onValueChange={(value) => setDeathScenario(value as "premier" | "deuxieme")} className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="premier">Premier décès</TabsTrigger>
+                      <TabsTrigger value="deuxieme">Deuxième décès</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Actif taxable total</Label>
@@ -883,12 +1011,14 @@ export default function DMTGPage() {
                         {formatCurrency(resultats.liquidation.totalSuccessionAssets)}
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Conjoint survivant</Label>
-                      <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
-                        {formatCurrency(resultats.devolution.spouse.fiscalValue)}
+                    {deathScenario === "premier" && (
+                      <div className="space-y-2">
+                        <Label>Conjoint survivant</Label>
+                        <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
+                          {formatCurrency(resultats.devolution.spouse.fiscalValue)}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -908,7 +1038,7 @@ export default function DMTGPage() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Base taxable</Label>
+                      <Label>Base taxable (par enfant)</Label>
                       <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
                         {formatCurrency(resultats.rightsPerChild.taxableBase)}
                       </div>
@@ -957,4 +1087,3 @@ export default function DMTGPage() {
     </SidebarInset>
   )
 }
-

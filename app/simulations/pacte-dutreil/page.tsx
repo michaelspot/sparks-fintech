@@ -435,23 +435,26 @@ export default function PacteDutreilPage() {
           {/* COLONNE DROITE - RÉSULTATS */}
           <div className="space-y-4">
             {resultats && entrepriseActuelle ? (
-              <>
-                {/* Scénario 1 : Sans Dutreil */}
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                    <CardTitle>Sans Dutreil</CardTitle>
+                  <div className="text-2xl font-semibold leading-none tracking-tight">Résultat de la simulation</div>
                     <Dialog>
                       <DialogTrigger asChild>
                         <Button variant="outline" size="sm">Voir détail</Button>
                       </DialogTrigger>
-                      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                    <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                         <DialogHeader>
-                          <DialogTitle>Détails du calcul - Sans Dutreil</DialogTitle>
+                        <DialogTitle>Détails des calculs des 3 scénarios</DialogTitle>
                           <DialogDescription>
-                            Transmission classique sans dispositif Dutreil
+                          Comparaison détaillée des méthodes de transmission
                           </DialogDescription>
                         </DialogHeader>
+                      <div className="space-y-8">
+                        {/* SCÉNARIO 1 : SANS DUTREIL */}
                         <div className="space-y-4">
+                          <div className="flex items-center justify-between pb-2 border-b-2 border-primary">
+                            <h3 className="text-xl font-bold">SCÉNARIO 1 : Sans Dutreil</h3>
+                          </div>
                           <div className="space-y-3">
                             <h4 className="font-semibold text-sm text-muted-foreground">
                               ÉTAPE 1 : VALEUR À TRANSMETTRE
@@ -506,7 +509,7 @@ export default function PacteDutreilPage() {
                             <h4 className="font-semibold text-sm text-muted-foreground">
                               RÉSULTAT FINAL
                             </h4>
-                            <div className="bg-muted/30 rounded-lg p-4 space-y-2">
+                            <div className="bg-primary/10 rounded-lg p-4 space-y-2">
                               <div className="flex justify-between">
                                 <span>Droits dus par enfant :</span>
                                 <span className="font-mono">{formatCurrency(resultats.sansDutreil.droitsDus)}</span>
@@ -519,53 +522,15 @@ export default function PacteDutreilPage() {
                                 <span>Ratio de transmission :</span>
                                 <span className="font-mono">{formatPercentage(resultats.sansDutreil.ratioTransmission)}</span>
                               </div>
-                            </div>
-                          </div>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Droits dus par enfant</Label>
-                        <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
-                          {formatCurrency(resultats.sansDutreil.droitsDus)}
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Coût total</Label>
-                        <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
-                          {formatCurrency(resultats.sansDutreil.coutTotal)}
                         </div>
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label>Ratio de transmission</Label>
-                      <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
-                        {formatPercentage(resultats.sansDutreil.ratioTransmission)}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Scénario 2 : Avec Dutreil PP */}
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                    <CardTitle>Avec Dutreil - Pleine Propriété</CardTitle>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm">Voir détail</Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                        <DialogHeader>
-                          <DialogTitle>Détails du calcul - Dutreil Pleine Propriété</DialogTitle>
-                          <DialogDescription>
-                            Transmission avec Pacte Dutreil en pleine propriété
-                          </DialogDescription>
-                        </DialogHeader>
+                        {/* SCÉNARIO 2 : AVEC DUTREIL PP */}
                         <div className="space-y-4">
+                          <div className="flex items-center justify-between pb-2 border-b-2 border-primary">
+                            <h3 className="text-xl font-bold">SCÉNARIO 2 : Avec Dutreil - Pleine Propriété</h3>
+                          </div>
                           <div className="space-y-3">
                             <h4 className="font-semibold text-sm text-muted-foreground">
                               ÉTAPE 1 : VALEUR À TRANSMETTRE
@@ -650,7 +615,7 @@ export default function PacteDutreilPage() {
                             <h4 className="font-semibold text-sm text-muted-foreground">
                               RÉSULTAT FINAL
                             </h4>
-                            <div className="bg-muted/30 rounded-lg p-4 space-y-2">
+                            <div className="bg-primary/10 rounded-lg p-4 space-y-2">
                               <div className="flex justify-between">
                                 <span>Droits dus par enfant :</span>
                                 <span className="font-mono">{formatCurrency(resultats.avecDutreilPP.droitsDus)}</span>
@@ -663,53 +628,15 @@ export default function PacteDutreilPage() {
                                 <span>Ratio de transmission :</span>
                                 <span className="font-mono">{formatPercentage(resultats.avecDutreilPP.ratioTransmission)}</span>
                               </div>
-                            </div>
-                          </div>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Droits dus par enfant</Label>
-                        <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
-                          {formatCurrency(resultats.avecDutreilPP.droitsDus)}
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Coût total</Label>
-                        <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
-                          {formatCurrency(resultats.avecDutreilPP.coutTotal)}
                         </div>
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label>Ratio de transmission</Label>
-                      <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
-                        {formatPercentage(resultats.avecDutreilPP.ratioTransmission)}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Scénario 3 : Avec Dutreil NP */}
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                    <CardTitle>Avec Dutreil - Nue-Propriété</CardTitle>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm">Voir détail</Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                        <DialogHeader>
-                          <DialogTitle>Détails du calcul - Dutreil Nue-Propriété</DialogTitle>
-                          <DialogDescription>
-                            Transmission avec Pacte Dutreil en nue-propriété (démembrement)
-                          </DialogDescription>
-                        </DialogHeader>
+                        {/* SCÉNARIO 3 : AVEC DUTREIL NP */}
                         <div className="space-y-4">
+                          <div className="flex items-center justify-between pb-2 border-b-2 border-primary">
+                            <h3 className="text-xl font-bold">SCÉNARIO 3 : Avec Dutreil - Nue-Propriété</h3>
+                          </div>
                           <div className="space-y-3">
                             <h4 className="font-semibold text-sm text-muted-foreground">
                               ÉTAPE 1 : VALEUR À TRANSMETTRE
@@ -733,7 +660,7 @@ export default function PacteDutreilPage() {
 
                           <div className="space-y-3">
                             <h4 className="font-semibold text-sm text-muted-foreground">
-                              ÉTAPE 2 : CALCUL NRUE-PROPRIÉTÉ (Art 669 CGI)
+                              ÉTAPE 2 : CALCUL NUE-PROPRIÉTÉ (Art 669 CGI)
                             </h4>
                             <div className="bg-muted/30 rounded-lg p-4 space-y-2 text-sm">
                               <div className="flex justify-between">
@@ -802,7 +729,7 @@ export default function PacteDutreilPage() {
                             <h4 className="font-semibold text-sm text-muted-foreground">
                               RÉSULTAT FINAL
                             </h4>
-                            <div className="bg-muted/30 rounded-lg p-4 space-y-2">
+                            <div className="bg-primary/10 rounded-lg p-4 space-y-2">
                               <div className="flex justify-between">
                                 <span>Droits dus par enfant :</span>
                                 <span className="font-mono">{formatCurrency(resultats.avecDutreilNP.droitsDus)}</span>
@@ -815,6 +742,7 @@ export default function PacteDutreilPage() {
                                 <span>Ratio de transmission :</span>
                                 <span className="font-mono">{formatPercentage(resultats.avecDutreilNP.ratioTransmission)}</span>
                               </div>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -822,30 +750,95 @@ export default function PacteDutreilPage() {
                     </Dialog>
                   </CardHeader>
                   <CardContent className="space-y-6">
+                  {/* Sans Dutreil */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                      <h3 className="font-semibold text-lg">Sans Dutreil</h3>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Droits dus par enfant</Label>
+                        <Label className="text-xs text-muted-foreground">Droits dus par enfant</Label>
+                        <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
+                          {formatCurrency(resultats.sansDutreil.droitsDus)}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Coût total</Label>
+                        <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
+                          {formatCurrency(resultats.sansDutreil.coutTotal)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Ratio de transmission</Label>
+                      <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
+                        {formatPercentage(resultats.sansDutreil.ratioTransmission)}
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Avec Dutreil PP */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                      <h3 className="font-semibold text-lg">Avec Dutreil - Pleine Propriété</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Droits dus par enfant</Label>
+                        <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
+                          {formatCurrency(resultats.avecDutreilPP.droitsDus)}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Coût total</Label>
+                        <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
+                          {formatCurrency(resultats.avecDutreilPP.coutTotal)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Ratio de transmission</Label>
+                      <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
+                        {formatPercentage(resultats.avecDutreilPP.ratioTransmission)}
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Avec Dutreil NP */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-purple-500"></div>
+                      <h3 className="font-semibold text-lg">Avec Dutreil - Nue-Propriété</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Droits dus par enfant</Label>
                         <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
                           {formatCurrency(resultats.avecDutreilNP.droitsDus)}
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label>Coût total</Label>
+                        <Label className="text-xs text-muted-foreground">Coût total</Label>
                         <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
                           {formatCurrency(resultats.avecDutreilNP.coutTotal)}
                         </div>
                       </div>
                     </div>
-
                     <div className="space-y-2">
-                      <Label>Ratio de transmission</Label>
+                      <Label className="text-xs text-muted-foreground">Ratio de transmission</Label>
                       <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
                         {formatPercentage(resultats.avecDutreilNP.ratioTransmission)}
+                      </div>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-              </>
             ) : (
               <Card>
                 <CardContent className="pt-6">
@@ -862,3 +855,4 @@ export default function PacteDutreilPage() {
     </SidebarInset>
   )
 }
+

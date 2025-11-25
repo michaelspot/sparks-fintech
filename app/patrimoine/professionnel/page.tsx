@@ -13,7 +13,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { Plus, Briefcase, Edit, Trash2, Building } from "lucide-react"
+import { Plus, Briefcase, Edit, Trash2, Building, X } from "lucide-react"
 import { useState, useEffect } from "react"
 import {
   Dialog,
@@ -26,29 +26,291 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PieChart, Pie, ResponsiveContainer, Tooltip } from "recharts"
+import { toast } from "sonner"
+import { OwnershipChartDialog } from "./OwnershipChartDialog"
+
+interface AssetHolder {
+  id: string
+  owner: string // Clé interne : "Vous", "Conjoint", "Commun", "NomSociété", "Autre"
+  displayName?: string // Pour affichage (optionnel, calculé à la volée)
+  jobTitle: string
+  percentage: number
+}
 
 interface ProfessionalAsset {
   id: string
   companyName: string
   activity: string
-  shareOwnership: string
-  ownershipPercentage: number
   willToTransfer: string
-  ownership: string
   valuation: number
+  holders: AssetHolder[]
 }
 
 const LOCAL_STORAGE_KEY = "patrimoineProfessionnelInfo"
+const IDENTITY_KEY = "identityPersonalInfo"
+
+// Composant de formulaire extrait pour éviter le démontage/remontage lors des mises à jour de state
+function AssetFormContent({
+  asset,
+  setAsset,
+  tempHolder,
+  setTempHolder,
+  onAddHolder,
+  onRemoveHolder,
+  otherAssets,
+  identity,
+}: {
+  asset: Partial<ProfessionalAsset>
+  setAsset: (a: Partial<ProfessionalAsset>) => void
+  tempHolder: Partial<AssetHolder>
+  setTempHolder: (h: Partial<AssetHolder>) => void
+  onAddHolder: () => void
+  onRemoveHolder: (id: string) => void
+  otherAssets: ProfessionalAsset[]
+  identity: any
+}) {
+  // Construction des options de propriétaires
+  const ownerOptions = []
+
+  // Personnes physiques
+  if (identity) {
+    ownerOptions.push({ value: "Vous", label: identity.firstName || "Vous" })
+    if (identity.spouseFirstName) {
+      ownerOptions.push({ value: "Conjoint", label: identity.spouseFirstName })
+    }
+    // Gestion des enfants
+    if (identity.children && Array.isArray(identity.children)) {
+      identity.children.forEach((child: any, index: number) => {
+        const label = child.firstName || `Enfant ${index + 1}`
+        ownerOptions.push({ value: label, label: label }) // On utilise le prénom comme valeur pour les enfants pour l'instant
+      })
+    }
+  } else {
+    // Fallback
+    ownerOptions.push({ value: "Vous", label: "Vous" })
+    ownerOptions.push({ value: "Conjoint", label: "Conjoint" })
+  }
+  ownerOptions.push({ value: "Commun", label: "Communauté" })
+
+  // Personnes morales (autres sociétés)
+  if (otherAssets.length > 0) {
+    otherAssets.forEach((a) => {
+      ownerOptions.push({ value: a.companyName, label: a.companyName })
+    })
+  }
+
+  ownerOptions.push({ value: "Autre", label: "Autre Tiers" })
+
+  // Helper pour trouver le label d'un owner stocké
+  const getOwnerLabel = (value: string) => {
+    const option = ownerOptions.find((o) => o.value === value)
+    return option ? option.label : value
+  }
+
+  return (
+    <Tabs defaultValue="identification" className="w-full">
+      <TabsList className="grid w-full grid-cols-2">
+        <TabsTrigger value="identification">Identification</TabsTrigger>
+        <TabsTrigger value="detenteurs">Détenteurs</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="identification" className="space-y-4 py-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="companyName">Nom de la société</Label>
+            <Input
+              id="companyName"
+              placeholder="Ex: SARL Dupont & Fils"
+              value={asset.companyName || ""}
+              onChange={(e) => setAsset({ ...asset, companyName: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="activity">Activité de la société</Label>
+            <Select
+              value={asset.activity}
+              onValueChange={(value) => setAsset({ ...asset, activity: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner une activité..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Développement logiciel">Développement logiciel</SelectItem>
+                <SelectItem value="Conseil en management">Conseil en management</SelectItem>
+                <SelectItem value="Commerce">Commerce</SelectItem>
+                <SelectItem value="Services">Services</SelectItem>
+                <SelectItem value="Industrie">Industrie</SelectItem>
+                <SelectItem value="BTP">BTP</SelectItem>
+                <SelectItem value="Restauration">Restauration</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="willToTransfer">Volonté de transmettre</Label>
+            <Select
+              value={asset.willToTransfer}
+              onValueChange={(value) => setAsset({ ...asset, willToTransfer: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Oui">Oui</SelectItem>
+                <SelectItem value="Non">Non</SelectItem>
+                <SelectItem value="À étudier">À étudier</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="valuation">Valorisation des titres (€)</Label>
+            <Input
+              id="valuation"
+              type="number"
+              placeholder="Ex: 150000"
+              value={asset.valuation || ""}
+              onChange={(e) => setAsset({ ...asset, valuation: Number.parseInt(e.target.value) || 0 })}
+            />
+          </div>
+        </div>
+      </TabsContent>
+
+      <TabsContent value="detenteurs" className="space-y-4 py-4">
+        <div className="space-y-4 border rounded-md p-4 bg-muted/20">
+          <h4 className="text-sm font-medium">Ajouter un détenteur</h4>
+          <div className="grid grid-cols-12 gap-2 items-end">
+            <div className="col-span-4 space-y-1">
+              <Label htmlFor="holder-owner" className="text-xs">
+                Qui détient ?
+              </Label>
+              <Select
+                value={tempHolder.owner || ""}
+                onValueChange={(value) => setTempHolder({ ...tempHolder, owner: value })}
+              >
+                <SelectTrigger id="holder-owner" className="h-8">
+                  <SelectValue placeholder="Sélectionner" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ownerOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="col-span-4 space-y-1">
+              <Label htmlFor="holder-function" className="text-xs">
+                Fonction
+              </Label>
+              <Select
+                value={tempHolder.jobTitle || ""}
+                onValueChange={(value) => setTempHolder({ ...tempHolder, jobTitle: value })}
+              >
+                <SelectTrigger id="holder-function" className="h-8">
+                  <SelectValue placeholder="Sélectionner" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Président">Président</SelectItem>
+                  <SelectItem value="Directeur Général">Directeur Général</SelectItem>
+                  <SelectItem value="Directeur Général Délégué">Directeur Général Délégué</SelectItem>
+                  <SelectItem value="Gérant">Gérant</SelectItem>
+                  <SelectItem value="Co-gérant">Co-gérant</SelectItem>
+                  <SelectItem value="Président du CA">Président du CA</SelectItem>
+                  <SelectItem value="Membre du Directoire">Membre du Directoire</SelectItem>
+                  <SelectItem value="Associé">Associé</SelectItem>
+                  <SelectItem value="Actionnaire">Actionnaire</SelectItem>
+                  <SelectItem value="Usufruitier">Usufruitier</SelectItem>
+                  <SelectItem value="Nu-propriétaire">Nu-propriétaire</SelectItem>
+                  <SelectItem value="Autre">Autre</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="col-span-3 space-y-1">
+              <Label htmlFor="holder-percent" className="text-xs">
+                % Capital
+              </Label>
+              <Input
+                id="holder-percent"
+                type="number"
+                placeholder="%"
+                className="h-8"
+                value={tempHolder.percentage || ""}
+                onChange={(e) => setTempHolder({ ...tempHolder, percentage: Number(e.target.value) })}
+              />
+            </div>
+            <div className="col-span-1">
+              <Button
+                size="icon"
+                className="h-8 w-8"
+                onClick={onAddHolder}
+                disabled={!tempHolder.owner || !tempHolder.percentage}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Liste des détenteurs</Label>
+          {asset.holders && asset.holders.length > 0 ? (
+            <div className="space-y-2">
+              {asset.holders.map((holder, idx) => (
+                <div key={idx} className="flex items-center justify-between p-2 border rounded bg-background text-sm">
+                  <div className="flex gap-2">
+                    <span className="font-semibold">{getOwnerLabel(holder.owner)}</span>
+                    <span className="text-muted-foreground">
+                      - {holder.jobTitle} - {holder.percentage}%
+                    </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => onRemoveHolder(holder.id)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground text-center py-4 border border-dashed rounded">
+              Aucun détenteur ajouté
+            </div>
+          )}
+        </div>
+      </TabsContent>
+    </Tabs>
+  )
+}
 
 export default function ProfessionalPatrimonyPage() {
-  const [assets, setAssets] = useState<ProfessionalAsset[]>(() => {
+  const [isLoaded, setIsLoaded] = useState(false)
+  const [assets, setAssets] = useState<ProfessionalAsset[]>([])
+  const [identity, setIdentity] = useState<any>(null)
+
+  // Chargement des données au montage (Client-side only pour éviter Hydration Mismatch)
+  useEffect(() => {
     if (typeof window !== "undefined") {
-      const savedData = localStorage.getItem(LOCAL_STORAGE_KEY)
-      if (savedData) return JSON.parse(savedData)
+      const savedAssets = localStorage.getItem(LOCAL_STORAGE_KEY)
+      if (savedAssets) {
+        setAssets(JSON.parse(savedAssets))
+      }
+      
+      const savedIdentity = localStorage.getItem(IDENTITY_KEY)
+      if (savedIdentity) {
+        setIdentity(JSON.parse(savedIdentity))
+      }
+
+      setIsLoaded(true)
     }
-    return []
-  })
+  }, [])
 
   const saveAssetsToLocalStorage = (updatedAssets: ProfessionalAsset[]) => {
     if (typeof window !== "undefined") {
@@ -56,14 +318,50 @@ export default function ProfessionalPatrimonyPage() {
     }
   }
 
-  useEffect(() => saveAssetsToLocalStorage(assets), [assets])
+  useEffect(() => {
+    if (isLoaded) {
+      saveAssetsToLocalStorage(assets)
+    }
+  }, [assets, isLoaded])
 
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [newAsset, setNewAsset] = useState<Partial<ProfessionalAsset>>({})
+  const [newAsset, setNewAsset] = useState<Partial<ProfessionalAsset>>({ holders: [] })
   const [editingAsset, setEditingAsset] = useState<ProfessionalAsset | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 
+  // State pour l'ajout d'un détenteur
+  const [tempHolder, setTempHolder] = useState<Partial<AssetHolder>>({})
+
   const totalValuation = assets.reduce((sum, asset) => sum + (asset.valuation || 0), 0)
+
+  const handleAddHolder = () => {
+    if (tempHolder.owner && tempHolder.percentage) {
+      const currentTotal = (newAsset.holders || []).reduce((sum, h) => sum + h.percentage, 0)
+      if (currentTotal + Number(tempHolder.percentage) > 100) {
+        toast.error(`Impossible d'ajouter : le total dépasse 100% (Actuel: ${currentTotal}%)`)
+        return
+      }
+
+      const holder: AssetHolder = {
+        id: Date.now().toString(),
+        owner: tempHolder.owner,
+        jobTitle: tempHolder.jobTitle || "",
+        percentage: Number(tempHolder.percentage),
+      }
+      setNewAsset({
+        ...newAsset,
+        holders: [...(newAsset.holders || []), holder],
+      })
+      setTempHolder({})
+    }
+  }
+
+  const handleRemoveHolder = (holderId: string) => {
+    setNewAsset({
+      ...newAsset,
+      holders: (newAsset.holders || []).filter((h) => h.id !== holderId),
+    })
+  }
 
   const handleAddAsset = () => {
     if (newAsset.companyName && newAsset.activity) {
@@ -71,15 +369,14 @@ export default function ProfessionalPatrimonyPage() {
         id: Date.now().toString(),
         companyName: newAsset.companyName || "",
         activity: newAsset.activity || "",
-        shareOwnership: newAsset.shareOwnership || "",
-        ownershipPercentage: newAsset.ownershipPercentage || 0,
         willToTransfer: newAsset.willToTransfer || "",
-        ownership: newAsset.ownership || "",
         valuation: newAsset.valuation || 0,
+        holders: newAsset.holders || [],
       }
       const updatedAssets = [...assets, asset]
       setAssets(updatedAssets)
-      setNewAsset({})
+      setNewAsset({ holders: [] })
+      setTempHolder({})
       setIsDialogOpen(false)
     }
   }
@@ -91,48 +388,48 @@ export default function ProfessionalPatrimonyPage() {
 
   const handleEditAsset = (asset: ProfessionalAsset) => {
     setEditingAsset(asset)
-    setNewAsset(asset)
+    setNewAsset({ ...asset })
     setIsEditDialogOpen(true)
   }
 
   const handleUpdateAsset = () => {
     if (editingAsset && newAsset.companyName && newAsset.activity) {
       const updatedAsset: ProfessionalAsset = {
-        ...editingAsset,
+        id: editingAsset.id,
         companyName: newAsset.companyName || "",
         activity: newAsset.activity || "",
-        shareOwnership: newAsset.shareOwnership || "",
-        ownershipPercentage: newAsset.ownershipPercentage || 0,
         willToTransfer: newAsset.willToTransfer || "",
-        ownership: newAsset.ownership || "",
         valuation: newAsset.valuation || 0,
+        holders: newAsset.holders || [],
       }
       const updatedAssetsList = assets.map((a) => (a.id === editingAsset.id ? updatedAsset : a))
       setAssets(updatedAssetsList)
-      setNewAsset({})
+      setNewAsset({ holders: [] })
+      setTempHolder({})
       setEditingAsset(null)
       setIsEditDialogOpen(false)
     }
   }
 
-  // Data for ownership distribution - always show all three categories
+  // Data for ownership distribution
   const ownershipData = [
-    {
-      name: "Vous",
-      value: assets.filter((a) => a.ownership === "Vous").reduce((sum, a) => sum + (a.valuation || 0), 0),
-      fill: "#3b82f6", // blue-500
-    },
-    {
-      name: "Votre conjoint",
-      value: assets.filter((a) => a.ownership === "Votre conjoint").reduce((sum, a) => sum + (a.valuation || 0), 0),
-      fill: "#60a5fa", // blue-400
-    },
-    {
-      name: "Commun",
-      value: assets.filter((a) => a.ownership === "Commun").reduce((sum, a) => sum + (a.valuation || 0), 0),
-      fill: "#93c5fd", // blue-300
-    },
+    { name: identity?.firstName || "Vous", value: 0, fill: "#3b82f6" },
+    { name: identity?.spouseFirstName || "Conjoint", value: 0, fill: "#60a5fa" },
+    { name: "Commun", value: 0, fill: "#93c5fd" },
   ]
+
+  assets.forEach((asset) => {
+    if (asset.holders) {
+      asset.holders.forEach((holder) => {
+        const value = (asset.valuation || 0) * (holder.percentage / 100)
+        // Logique de mappage : Vous -> ownershipData[0], Conjoint -> ownershipData[1]
+        // Les autres sont ignorés dans ce graph simplifié ou nécessiteraient plus de catégories
+        if (holder.owner === "Vous") ownershipData[0].value += value
+        else if (holder.owner === "Conjoint") ownershipData[1].value += value
+        else if (holder.owner === "Commun") ownershipData[2].value += value
+      })
+    }
+  })
 
   const activityData = [
     {
@@ -165,11 +462,15 @@ export default function ProfessionalPatrimonyPage() {
     },
   ].filter((item) => item.value > 0)
 
-  // Assigne les couleurs dynamiquement
   const blueColors = ["#2563eb", "#3b82f6", "#60a5fa", "#93c5fd", "#dbeafe"]
   activityData.forEach((item, index) => {
     ;(item as any).fill = blueColors[Math.min(index, blueColors.length - 1)]
   })
+
+  // Eviter le rendu SSR mismatch en attendant le chargement
+  if (!isLoaded) {
+      return null // ou un loader
+  }
 
   return (
     <SidebarInset>
@@ -192,7 +493,7 @@ export default function ProfessionalPatrimonyPage() {
         <div className="ml-auto px-4 flex items-center gap-2">
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button onClick={() => { setNewAsset({ holders: [] }); setTempHolder({}); }}>
                 <Plus className="w-4 h-4 mr-2" />
                 Ajouter un actif professionnel
               </Button>
@@ -202,118 +503,19 @@ export default function ProfessionalPatrimonyPage() {
                 <DialogTitle>Ajouter un actif professionnel</DialogTitle>
                 <DialogDescription>Saisissez les informations de votre participation professionnelle</DialogDescription>
               </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="companyName">Nom de la société</Label>
-                    <Input
-                      id="companyName"
-                      placeholder="Ex: SARL Dupont & Fils"
-                      value={newAsset.companyName || ""}
-                      onChange={(e) => setNewAsset({ ...newAsset, companyName: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="activity">Activité de la société</Label>
-                    <Select
-                      value={newAsset.activity}
-                      onValueChange={(value) => setNewAsset({ ...newAsset, activity: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner une activité..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Développement logiciel">Développement logiciel</SelectItem>
-                        <SelectItem value="Conseil en management">Conseil en management</SelectItem>
-                        <SelectItem value="Commerce">Commerce</SelectItem>
-                        <SelectItem value="Services">Services</SelectItem>
-                        <SelectItem value="Industrie">Industrie</SelectItem>
-                        <SelectItem value="BTP">BTP</SelectItem>
-                        <SelectItem value="Restauration">Restauration</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+              
+              <AssetFormContent
+                asset={newAsset}
+                setAsset={setNewAsset}
+                tempHolder={tempHolder}
+                setTempHolder={setTempHolder}
+                onAddHolder={handleAddHolder}
+                onRemoveHolder={handleRemoveHolder}
+                otherAssets={assets}
+                identity={identity}
+              />
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="shareOwnership">Détention des titres</Label>
-                    <Select
-                      value={newAsset.shareOwnership}
-                      onValueChange={(value) => setNewAsset({ ...newAsset, shareOwnership: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Gérant majoritaire">Gérant majoritaire</SelectItem>
-                        <SelectItem value="Gérant minoritaire">Gérant minoritaire</SelectItem>
-                        <SelectItem value="Associé">Associé</SelectItem>
-                        <SelectItem value="Actionnaire">Actionnaire</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ownershipPercentage">Détention (%)</Label>
-                    <Input
-                      id="ownershipPercentage"
-                      type="number"
-                      placeholder="Ex: 50"
-                      value={newAsset.ownershipPercentage || ""}
-                      onChange={(e) =>
-                        setNewAsset({ ...newAsset, ownershipPercentage: Number.parseInt(e.target.value) || 0 })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="willToTransfer">Volonté de transmettre</Label>
-                    <Select
-                      value={newAsset.willToTransfer}
-                      onValueChange={(value) => setNewAsset({ ...newAsset, willToTransfer: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Oui">Oui</SelectItem>
-                        <SelectItem value="Non">Non</SelectItem>
-                        <SelectItem value="À étudier">À étudier</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ownership">Détention</Label>
-                    <Select
-                      value={newAsset.ownership}
-                      onValueChange={(value) => setNewAsset({ ...newAsset, ownership: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Vous" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Vous">Vous</SelectItem>
-                        <SelectItem value="Votre conjoint">Votre conjoint</SelectItem>
-                        <SelectItem value="Commun">Commun</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="valuation">Valorisation des titres (€)</Label>
-                  <Input
-                    id="valuation"
-                    type="number"
-                    placeholder="Ex: 150000"
-                    value={newAsset.valuation || ""}
-                    onChange={(e) => setNewAsset({ ...newAsset, valuation: Number.parseInt(e.target.value) || 0 })}
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end space-x-2">
+              <div className="flex justify-end space-x-2 mt-4">
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Annuler
                 </Button>
@@ -321,124 +523,26 @@ export default function ProfessionalPatrimonyPage() {
               </div>
             </DialogContent>
           </Dialog>
+
           <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Modifier un actif professionnel</DialogTitle>
                 <DialogDescription>Modifiez les informations de votre participation professionnelle</DialogDescription>
               </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="companyNameEdit">Nom de la société</Label>
-                    <Input
-                      id="companyNameEdit"
-                      placeholder="Ex: SARL Dupont & Fils"
-                      value={newAsset.companyName || ""}
-                      onChange={(e) => setNewAsset({ ...newAsset, companyName: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="activityEdit">Activité de la société</Label>
-                    <Select
-                      value={newAsset.activity}
-                      onValueChange={(value) => setNewAsset({ ...newAsset, activity: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner une activité..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Développement logiciel">Développement logiciel</SelectItem>
-                        <SelectItem value="Conseil en management">Conseil en management</SelectItem>
-                        <SelectItem value="Commerce">Commerce</SelectItem>
-                        <SelectItem value="Services">Services</SelectItem>
-                        <SelectItem value="Industrie">Industrie</SelectItem>
-                        <SelectItem value="BTP">BTP</SelectItem>
-                        <SelectItem value="Restauration">Restauration</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+              
+              <AssetFormContent
+                asset={newAsset}
+                setAsset={setNewAsset}
+                tempHolder={tempHolder}
+                setTempHolder={setTempHolder}
+                onAddHolder={handleAddHolder}
+                onRemoveHolder={handleRemoveHolder}
+                otherAssets={editingAsset ? assets.filter(a => a.id !== editingAsset.id) : assets}
+                identity={identity}
+              />
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="shareOwnershipEdit">Détention des titres</Label>
-                    <Select
-                      value={newAsset.shareOwnership}
-                      onValueChange={(value) => setNewAsset({ ...newAsset, shareOwnership: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Gérant majoritaire">Gérant majoritaire</SelectItem>
-                        <SelectItem value="Gérant minoritaire">Gérant minoritaire</SelectItem>
-                        <SelectItem value="Associé">Associé</SelectItem>
-                        <SelectItem value="Actionnaire">Actionnaire</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ownershipPercentageEdit">Détention (%)</Label>
-                    <Input
-                      id="ownershipPercentageEdit"
-                      type="number"
-                      placeholder="Ex: 50"
-                      value={newAsset.ownershipPercentage || ""}
-                      onChange={(e) =>
-                        setNewAsset({ ...newAsset, ownershipPercentage: Number.parseInt(e.target.value) || 0 })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="willToTransferEdit">Volonté de transmettre</Label>
-                    <Select
-                      value={newAsset.willToTransfer}
-                      onValueChange={(value) => setNewAsset({ ...newAsset, willToTransfer: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Oui">Oui</SelectItem>
-                        <SelectItem value="Non">Non</SelectItem>
-                        <SelectItem value="À étudier">À étudier</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ownershipEdit">Détention</Label>
-                    <Select
-                      value={newAsset.ownership}
-                      onValueChange={(value) => setNewAsset({ ...newAsset, ownership: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Vous" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Vous">Vous</SelectItem>
-                        <SelectItem value="Votre conjoint">Votre conjoint</SelectItem>
-                        <SelectItem value="Commun">Commun</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="valuationEdit">Valorisation des titres (€)</Label>
-                  <Input
-                    id="valuationEdit"
-                    type="number"
-                    placeholder="Ex: 150000"
-                    value={newAsset.valuation || ""}
-                    onChange={(e) => setNewAsset({ ...newAsset, valuation: Number.parseInt(e.target.value) || 0 })}
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end space-x-2">
+              <div className="flex justify-end space-x-2 mt-4">
                 <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                   Annuler
                 </Button>
@@ -465,13 +569,17 @@ export default function ProfessionalPatrimonyPage() {
           <div className="space-y-6">
             {/* Dashboard Overview */}
             <div className="space-y-6">
-              {/* Patrimoine Total, Répartition dans le couple et Répartition par type */}
               <div className="grid gap-6 md:grid-cols-9 items-stretch">
                 <div className="md:col-span-5 space-y-6">
                   <Card className="flex flex-col h-full">
                     <CardHeader>
-                      <h3 className="text-3xl font-bold text-black">{totalValuation.toLocaleString("fr-FR")} €</h3>
-                      <CardDescription>Patrimoine Professionnel Total</CardDescription>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="text-3xl font-bold text-foreground">{totalValuation.toLocaleString("fr-FR")} €</h3>
+                          <CardDescription>Patrimoine Professionnel Total</CardDescription>
+                        </div>
+                        <OwnershipChartDialog assets={assets} identity={identity} />
+                      </div>
                     </CardHeader>
                     <CardContent className="flex-grow">
                       <div className="flex flex-col h-full justify-between gap-2">
@@ -505,7 +613,6 @@ export default function ProfessionalPatrimonyPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="flex flex-row items-center gap-6">
-                      {/* Graphique à gauche (50%) */}
                       <div className="w-1/2 h-[200px]">
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
@@ -523,7 +630,6 @@ export default function ProfessionalPatrimonyPage() {
                         </ResponsiveContainer>
                       </div>
 
-                      {/* Légende à droite (50%) */}
                       <div className="w-1/2 space-y-2">
                         {activityData.map((item) => (
                           <div key={item.name} className="flex items-center justify-between">
@@ -551,9 +657,20 @@ export default function ProfessionalPatrimonyPage() {
                       <div>
                         <CardTitle className="text-lg">{asset.companyName}</CardTitle>
                         <CardDescription>
-                          {asset.activity} • {asset.shareOwnership} ({asset.ownershipPercentage}%) •{" "}
-                          {(asset.valuation || 0).toLocaleString("fr-FR")} € • {asset.ownership}
+                          {asset.activity} • {(asset.valuation || 0).toLocaleString("fr-FR")} €
                         </CardDescription>
+                        {asset.holders && asset.holders.length > 0 && (
+                          <div className="mt-2 text-sm text-muted-foreground flex flex-wrap gap-2">
+                             {asset.holders.map(h => (
+                               <span key={h.id} className="bg-muted px-2 py-0.5 rounded text-xs">
+                                 {/* Helper local pour récupérer le label si "Vous"/"Conjoint" est stocké */}
+                                 {h.owner === "Vous" && identity?.firstName ? identity.firstName : 
+                                  h.owner === "Conjoint" && identity?.spouseFirstName ? identity.spouseFirstName : h.owner}
+                                 {" "} ({h.percentage}%) - {h.jobTitle}
+                               </span>
+                             ))}
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center space-x-4">
                         <div className="flex items-center space-x-2">

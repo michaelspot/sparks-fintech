@@ -132,6 +132,11 @@ const data = {
       icon: TrendingUp,
       items: [
         {
+          title: "Allocation d'actifs",
+          url: "/simulations/allocation",
+          icon: BarChart3,
+        },
+        {
           title: "Pacte Dutreil",
           url: "/simulations/pacte-dutreil",
           icon: Building,

@@ -346,6 +346,7 @@ const LOCAL_STORAGE_KEY = "identityInvestorProfileInfo"
 export default function InvestorProfilePage() {
   const [userProfile, setUserProfile] = useState<InvestorProfile>({ ...initialProfile })
   const [spouseProfile, setSpouseProfile] = useState<InvestorProfile | null>(null)
+  const [isLoaded, setIsLoaded] = useState(false)
 
   const [isUserDialogOpen, setIsUserDialogOpen] = useState(false)
   const [isSpouseDialogOpen, setIsSpouseDialogOpen] = useState(false)
@@ -359,12 +360,13 @@ export default function InvestorProfilePage() {
         if (savedUserProfile) setUserProfile(savedUserProfile)
         if (savedSpouseProfile) setSpouseProfile(savedSpouseProfile)
       }
+      setIsLoaded(true)
     }
   }, [])
 
-  // Sauvegarder les données dans le localStorage
-  const saveToLocalStorage = () => {
-    if (typeof window !== "undefined") {
+  // Sauvegarder les données dans le localStorage automatiquement
+  useEffect(() => {
+    if (isLoaded && typeof window !== "undefined") {
       localStorage.setItem(
         LOCAL_STORAGE_KEY,
         JSON.stringify({
@@ -373,18 +375,14 @@ export default function InvestorProfilePage() {
         })
       )
     }
-  }
+  }, [userProfile, spouseProfile, isLoaded])
 
   const handleSaveUserProfile = (newProfile: InvestorProfile) => {
     setUserProfile(newProfile)
-    // Sauvegarde automatique après modification
-    setTimeout(() => saveToLocalStorage(), 0)
   }
 
   const handleSaveSpouseProfile = (newProfile: InvestorProfile) => {
     setSpouseProfile(newProfile)
-    // Sauvegarde automatique après modification
-    setTimeout(() => saveToLocalStorage(), 0)
   }
 
   const isUserProfileDefined = Object.values(userProfile).some((section) => section.label !== null)
