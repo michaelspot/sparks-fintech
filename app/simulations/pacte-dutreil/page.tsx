@@ -25,7 +25,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Calculator, Building2 } from "lucide-react"
+import { Calculator, Building2, FileDown, Loader2 } from "lucide-react"
 
 // ===== INTERFACES =====
 interface ProfessionalAsset {
@@ -164,7 +164,7 @@ function calculerScenariosDutreil(
   const dutreilPP_abattement100k = 100000
   const dutreilPP_baseTaxable = Math.max(0, dutreilPP_baseApresDutreil - dutreilPP_abattement100k)
   const dutreilPP_droitsAvantReduction = calculerDroitsDonation(dutreilPP_baseTaxable)
-  
+
   // Réduction de 50% si donateur < 70 ans
   const dutreilPP_reduction = ageDonateur < 70 ? dutreilPP_droitsAvantReduction * 0.50 : 0
   const dutreilPP_droitsDus = dutreilPP_droitsAvantReduction - dutreilPP_reduction
@@ -224,6 +224,7 @@ export default function PacteDutreilPage() {
   const [ageDonateur, setAgeDonateur] = useState(65)
   const [nombreEnfants, setNombreEnfants] = useState(2)
   const [resultats, setResultats] = useState<DutreilResults | null>(null)
+  const [isExporting, setIsExporting] = useState(false)
 
   // Charger les entreprises depuis le patrimoine professionnel
   const loadDataFromLocalStorage = useCallback(() => {
@@ -295,9 +296,57 @@ export default function PacteDutreilPage() {
   }
 
   // Vérifier si Dutreil est possible
-  const dutreilPossible = entrepriseActuelle && 
-    entrepriseActuelle.willToTransfer === "Oui" && 
+  const dutreilPossible = entrepriseActuelle &&
+    entrepriseActuelle.willToTransfer === "Oui" &&
     entrepriseActuelle.valuation > 0
+
+  // Fonction d'export PDF
+  const handleExportPDF = async () => {
+    if (!resultats || !entrepriseActuelle) {
+      alert("Veuillez d'abord effectuer une simulation")
+      return
+    }
+
+    setIsExporting(true)
+    try {
+      const dutreilData = {
+        entrepriseName: entrepriseActuelle.companyName,
+        valorisationSociete: entrepriseActuelle.valuation,
+        nombreEnfants,
+        ageDonateur,
+        valeurParEnfant: entrepriseActuelle.valuation / nombreEnfants,
+        sansDutreil: resultats.sansDutreil,
+        avecDutreilPP: resultats.avecDutreilPP,
+        avecDutreilNP: resultats.avecDutreilNP,
+      }
+
+      const response = await fetch('/api/export/dutreil', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dutreilData }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.details || errorData.error || "Erreur lors de la génération")
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Simulation_Dutreil_${entrepriseActuelle.companyName.replace(/\s+/g, '_')}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error: any) {
+      console.error('Erreur export PDF:', error)
+      alert(`Erreur lors de l'export: ${error.message}`)
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   return (
     <SidebarInset>
@@ -321,7 +370,25 @@ export default function PacteDutreilPage() {
             </BreadcrumbList>
           </Breadcrumb>
         </div>
-        <div className="ml-auto px-4">
+        <div className="ml-auto flex items-center gap-2 px-4">
+          <Button
+            onClick={handleExportPDF}
+            disabled={!resultats || isExporting}
+            variant="outline"
+            size="sm"
+          >
+            {isExporting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Export en cours...
+              </>
+            ) : (
+              <>
+                <FileDown className="mr-2 h-4 w-4" />
+                Export PDF
+              </>
+            )}
+          </Button>
           <ThemeToggle />
         </div>
       </header>
@@ -435,20 +502,20 @@ export default function PacteDutreilPage() {
           {/* COLONNE DROITE - RÉSULTATS */}
           <div className="space-y-4">
             {resultats && entrepriseActuelle ? (
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                   <div className="text-2xl font-semibold leading-none tracking-tight">Résultat de la simulation</div>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm">Voir détail</Button>
-                      </DialogTrigger>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm">Voir détail</Button>
+                    </DialogTrigger>
                     <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                        <DialogHeader>
+                      <DialogHeader>
                         <DialogTitle>Détails des calculs des 3 scénarios</DialogTitle>
-                          <DialogDescription>
+                        <DialogDescription>
                           Comparaison détaillée des méthodes de transmission
-                          </DialogDescription>
-                        </DialogHeader>
+                        </DialogDescription>
+                      </DialogHeader>
                       <div className="space-y-8">
                         {/* SCÉNARIO 1 : SANS DUTREIL */}
                         <div className="space-y-4">
@@ -522,9 +589,9 @@ export default function PacteDutreilPage() {
                                 <span>Ratio de transmission :</span>
                                 <span className="font-mono">{formatPercentage(resultats.sansDutreil.ratioTransmission)}</span>
                               </div>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
 
                         {/* SCÉNARIO 2 : AVEC DUTREIL PP */}
                         <div className="space-y-4">
@@ -628,9 +695,9 @@ export default function PacteDutreilPage() {
                                 <span>Ratio de transmission :</span>
                                 <span className="font-mono">{formatPercentage(resultats.avecDutreilPP.ratioTransmission)}</span>
                               </div>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
 
                         {/* SCÉNARIO 3 : AVEC DUTREIL NP */}
                         <div className="space-y-4">
@@ -742,14 +809,14 @@ export default function PacteDutreilPage() {
                                 <span>Ratio de transmission :</span>
                                 <span className="font-mono">{formatPercentage(resultats.avecDutreilNP.ratioTransmission)}</span>
                               </div>
-                              </div>
                             </div>
                           </div>
                         </div>
-                      </DialogContent>
-                    </Dialog>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </CardHeader>
+                <CardContent className="space-y-6">
                   {/* Sans Dutreil */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-2">
@@ -835,10 +902,10 @@ export default function PacteDutreilPage() {
                       <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
                         {formatPercentage(resultats.avecDutreilNP.ratioTransmission)}
                       </div>
-                      </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </CardContent>
+              </Card>
             ) : (
               <Card>
                 <CardContent className="pt-6">

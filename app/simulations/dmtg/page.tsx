@@ -221,7 +221,7 @@ function calculerSuccession(inputs: SuccessionInputs): SuccessionResults {
   // Base commune : séparation des biens communs
   let communityAssets = 0
   let communitySharePerPerson = 0
-  
+
   if (matrimonialRegime.includes("communaute") || matrimonialRegime === "indivision") {
     // Régime communautaire ou indivision (PACS)
     communityAssets = commonAssetsValue - debts
@@ -235,117 +235,117 @@ function calculerSuccession(inputs: SuccessionInputs): SuccessionResults {
   // ===== LOGIQUE SELON SCÉNARIO =====
   if (scenario === "premier") {
     const personalAssets = personalAssetsValue
-    const totalSuccessionAssets = communitySharePerPerson + personalAssets
+  const totalSuccessionAssets = communitySharePerPerson + personalAssets
 
     // DÉVOLUTION SUCCESSORALE
-    const numberOfChildren = children.length
-    let spouseTheoriticalRights = ""
-    let spouseFiscalValue = 0
-    const spouseTaxToPay = 0 // Loi TEPA : Conjoint exonéré
+  const numberOfChildren = children.length
+  let spouseTheoriticalRights = ""
+  let spouseFiscalValue = 0
+  const spouseTaxToPay = 0 // Loi TEPA : Conjoint exonéré
 
-    // Déterminer les droits du conjoint
-    const hasNonCommonChildren = children.some(
-      (child) => child.parentage === "propre_parent1" || child.parentage === "propre_parent2"
-    )
+  // Déterminer les droits du conjoint
+  const hasNonCommonChildren = children.some(
+    (child) => child.parentage === "propre_parent1" || child.parentage === "propre_parent2"
+  )
 
-    if (hasNonCommonChildren && !inputs.hasDDV) {
-      // Enfants non communs sans DDV => 1/4 PP imposé
-      spouseTheoriticalRights = "1/4 en pleine propriété (imposé par la loi)"
+  if (hasNonCommonChildren && !inputs.hasDDV) {
+    // Enfants non communs sans DDV => 1/4 PP imposé
+    spouseTheoriticalRights = "1/4 en pleine propriété (imposé par la loi)"
+    spouseFiscalValue = totalSuccessionAssets * 0.25
+  } else {
+    // Choix du conjoint
+    if (spouseOption === "usufruit-total") {
+      spouseTheoriticalRights = "100% en usufruit"
+      const pourcentageUsufruit = calculerPourcentageUsufruit(survivingSpouseAge)
+      spouseFiscalValue = totalSuccessionAssets * pourcentageUsufruit
+    } else if (spouseOption === "quart-pp") {
+      spouseTheoriticalRights = "1/4 en pleine propriété"
       spouseFiscalValue = totalSuccessionAssets * 0.25
-    } else {
-      // Choix du conjoint
-      if (spouseOption === "usufruit-total") {
-        spouseTheoriticalRights = "100% en usufruit"
-        const pourcentageUsufruit = calculerPourcentageUsufruit(survivingSpouseAge)
-        spouseFiscalValue = totalSuccessionAssets * pourcentageUsufruit
-      } else if (spouseOption === "quart-pp") {
-        spouseTheoriticalRights = "1/4 en pleine propriété"
-        spouseFiscalValue = totalSuccessionAssets * 0.25
-      } else if (spouseOption === "usufruit-partiel") {
-        spouseTheoriticalRights = "1/4 PP + 3/4 US"
-        const pourcentageUsufruit = calculerPourcentageUsufruit(survivingSpouseAge)
-        spouseFiscalValue = totalSuccessionAssets * 0.25 + totalSuccessionAssets * 0.75 * pourcentageUsufruit
-      } else if (spouseOption === "quotite-disponible") {
-        spouseTheoriticalRights = "Quotité disponible en pleine propriété"
-        let reserve = 0.5
-        if (numberOfChildren === 2) reserve = 2 / 3
-        if (numberOfChildren >= 3) reserve = 0.75
-        const quotiteDisponible = 1 - reserve
-        spouseFiscalValue = totalSuccessionAssets * quotiteDisponible
-      }
+    } else if (spouseOption === "usufruit-partiel") {
+      spouseTheoriticalRights = "1/4 PP + 3/4 US"
+      const pourcentageUsufruit = calculerPourcentageUsufruit(survivingSpouseAge)
+      spouseFiscalValue = totalSuccessionAssets * 0.25 + totalSuccessionAssets * 0.75 * pourcentageUsufruit
+    } else if (spouseOption === "quotite-disponible") {
+      spouseTheoriticalRights = "Quotité disponible en pleine propriété"
+      let reserve = 0.5
+      if (numberOfChildren === 2) reserve = 2 / 3
+      if (numberOfChildren >= 3) reserve = 0.75
+      const quotiteDisponible = 1 - reserve
+      spouseFiscalValue = totalSuccessionAssets * quotiteDisponible
     }
+  }
 
-    const childrenTotalInheritance = totalSuccessionAssets - spouseFiscalValue
-    const inheritancePerChild = numberOfChildren > 0 ? childrenTotalInheritance / numberOfChildren : 0
+  const childrenTotalInheritance = totalSuccessionAssets - spouseFiscalValue
+  const inheritancePerChild = numberOfChildren > 0 ? childrenTotalInheritance / numberOfChildren : 0
 
-    const abatementPerChild = 100000
-    const taxableBasePerChild = Math.max(0, inheritancePerChild - abatementPerChild)
-    const taxAmountPerChild = calculerDroitsSuccession(taxableBasePerChild)
-    const totalTaxForChildren = taxAmountPerChild * numberOfChildren
+  const abatementPerChild = 100000
+  const taxableBasePerChild = Math.max(0, inheritancePerChild - abatementPerChild)
+  const taxAmountPerChild = calculerDroitsSuccession(taxableBasePerChild)
+  const totalTaxForChildren = taxAmountPerChild * numberOfChildren
 
-    const totalAssetsTransmitted = totalSuccessionAssets
-    const totalSuccessionTax = totalTaxForChildren
-    const netReceivedByHeirs = totalAssetsTransmitted - totalSuccessionTax
+  const totalAssetsTransmitted = totalSuccessionAssets
+  const totalSuccessionTax = totalTaxForChildren
+  const netReceivedByHeirs = totalAssetsTransmitted - totalSuccessionTax
 
-    const details = [
-      { label: "LIQUIDATION DU RÉGIME MATRIMONIAL", value: "", highlight: true },
-      { label: "Actif de communauté", value: formatCurrency(communityAssets) },
-      { label: "Part de communauté (50%)", value: formatCurrency(communitySharePerPerson) },
-      { label: "Actifs propres du défunt", value: formatCurrency(personalAssets) },
-      { label: "ACTIF SUCCESSORAL TAXABLE", value: formatCurrency(totalSuccessionAssets), highlight: true },
-      { label: "", value: "" },
-      { label: "DÉVOLUTION SUCCESSORALE", value: "", highlight: true },
-      { label: "Droits du conjoint survivant", value: spouseTheoriticalRights },
-      { label: "Valeur fiscale du conjoint", value: formatCurrency(spouseFiscalValue) },
-      { label: "Droits à payer (conjoint)", value: "0 € (Loi TEPA)" },
-      { label: "", value: "" },
-      { label: "Part des enfants", value: formatCurrency(childrenTotalInheritance) },
-      { label: "Nombre d'enfants", value: numberOfChildren.toString() },
-      { label: "Part par enfant", value: formatCurrency(inheritancePerChild) },
-      { label: "", value: "" },
-      { label: "CALCUL DES DROITS (PAR ENFANT)", value: "", highlight: true },
-      { label: "Part brute", value: formatCurrency(inheritancePerChild) },
-      { label: "Abattement personnel", value: `-${formatCurrency(abatementPerChild)}` },
-      { label: "Base taxable", value: formatCurrency(taxableBasePerChild) },
-      { label: "Droits dus par enfant", value: formatCurrency(taxAmountPerChild), highlight: true },
-      { label: "", value: "" },
-      { label: "SYNTHÈSE", value: "", highlight: true },
-      { label: "Total actif transmis", value: formatCurrency(totalAssetsTransmitted) },
-      { label: "Total droits de succession", value: formatCurrency(totalSuccessionTax) },
-      { label: "Net perçu par les héritiers", value: formatCurrency(netReceivedByHeirs), highlight: true },
-    ]
+  const details = [
+    { label: "LIQUIDATION DU RÉGIME MATRIMONIAL", value: "", highlight: true },
+    { label: "Actif de communauté", value: formatCurrency(communityAssets) },
+    { label: "Part de communauté (50%)", value: formatCurrency(communitySharePerPerson) },
+    { label: "Actifs propres du défunt", value: formatCurrency(personalAssets) },
+    { label: "ACTIF SUCCESSORAL TAXABLE", value: formatCurrency(totalSuccessionAssets), highlight: true },
+    { label: "", value: "" },
+    { label: "DÉVOLUTION SUCCESSORALE", value: "", highlight: true },
+    { label: "Droits du conjoint survivant", value: spouseTheoriticalRights },
+    { label: "Valeur fiscale du conjoint", value: formatCurrency(spouseFiscalValue) },
+    { label: "Droits à payer (conjoint)", value: "0 € (Loi TEPA)" },
+    { label: "", value: "" },
+    { label: "Part des enfants", value: formatCurrency(childrenTotalInheritance) },
+    { label: "Nombre d'enfants", value: numberOfChildren.toString() },
+    { label: "Part par enfant", value: formatCurrency(inheritancePerChild) },
+    { label: "", value: "" },
+    { label: "CALCUL DES DROITS (PAR ENFANT)", value: "", highlight: true },
+    { label: "Part brute", value: formatCurrency(inheritancePerChild) },
+    { label: "Abattement personnel", value: `-${formatCurrency(abatementPerChild)}` },
+    { label: "Base taxable", value: formatCurrency(taxableBasePerChild) },
+    { label: "Droits dus par enfant", value: formatCurrency(taxAmountPerChild), highlight: true },
+    { label: "", value: "" },
+    { label: "SYNTHÈSE", value: "", highlight: true },
+    { label: "Total actif transmis", value: formatCurrency(totalAssetsTransmitted) },
+    { label: "Total droits de succession", value: formatCurrency(totalSuccessionTax) },
+    { label: "Net perçu par les héritiers", value: formatCurrency(netReceivedByHeirs), highlight: true },
+  ]
 
-    return {
-      liquidation: {
-        communityAssets,
-        communitySharePerPerson,
-        personalAssets,
-        totalSuccessionAssets,
+  return {
+    liquidation: {
+      communityAssets,
+      communitySharePerPerson,
+      personalAssets,
+      totalSuccessionAssets,
+    },
+    devolution: {
+      spouse: {
+        theoreticalRights: spouseTheoriticalRights,
+        fiscalValue: spouseFiscalValue,
+        taxToPay: spouseTaxToPay,
       },
-      devolution: {
-        spouse: {
-          theoreticalRights: spouseTheoriticalRights,
-          fiscalValue: spouseFiscalValue,
-          taxToPay: spouseTaxToPay,
-        },
-        children: {
-          totalInheritance: childrenTotalInheritance,
-          inheritancePerChild,
-        },
+      children: {
+        totalInheritance: childrenTotalInheritance,
+        inheritancePerChild,
       },
-      rightsPerChild: {
-        grossShare: inheritancePerChild,
-        abatement: abatementPerChild,
-        taxableBase: taxableBasePerChild,
-        taxAmount: taxAmountPerChild,
-      },
-      summary: {
-        totalAssetsTransmitted,
-        totalSuccessionTax,
-        netReceivedByHeirs,
+    },
+    rightsPerChild: {
+      grossShare: inheritancePerChild,
+      abatement: abatementPerChild,
+      taxableBase: taxableBasePerChild,
+      taxAmount: taxAmountPerChild,
+    },
+    summary: {
+      totalAssetsTransmitted,
+      totalSuccessionTax,
+      netReceivedByHeirs,
         details,
-      },
-      details,
+    },
+    details,
     }
   } else {
     // ===== SCÉNARIO 2 : DEUXIÈME DÉCÈS =====
@@ -1012,12 +1012,12 @@ export default function DMTGPage() {
                       </div>
                     </div>
                     {deathScenario === "premier" && (
-                      <div className="space-y-2">
-                        <Label>Conjoint survivant</Label>
-                        <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
-                          {formatCurrency(resultats.devolution.spouse.fiscalValue)}
-                        </div>
+                    <div className="space-y-2">
+                      <Label>Conjoint survivant</Label>
+                      <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium">
+                        {formatCurrency(resultats.devolution.spouse.fiscalValue)}
                       </div>
+                    </div>
                     )}
                   </div>
 

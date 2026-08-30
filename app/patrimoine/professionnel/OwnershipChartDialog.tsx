@@ -129,11 +129,11 @@ export function OwnershipChartDialog({ assets, identity }: { assets: Professiona
         nodes.push({
           id: asset.companyName,
           type: 'company',
-          data: { 
-            label: asset.companyName, 
-            valuation: asset.valuation, 
-            activity: asset.activity, 
-            willToTransfer: asset.willToTransfer 
+          data: {
+            label: asset.companyName,
+            valuation: asset.valuation,
+            activity: asset.activity,
+            willToTransfer: asset.willToTransfer
           },
           position: { x: 0, y: 0 }, // Sera calculé par dagre
         });
@@ -141,44 +141,46 @@ export function OwnershipChartDialog({ assets, identity }: { assets: Professiona
       }
 
       // Parcourir les holders pour trouver les personnes et les liens
-      asset.holders.forEach(holder => {
-        const ownerName = holder.owner;
-        
-        // Mapping pour affichage joli des personnes
-        let displayLabel = ownerName;
-        if (ownerName === "Vous" && identity?.firstName) displayLabel = identity.firstName;
-        else if (ownerName === "Conjoint" && identity?.spouseFirstName) displayLabel = identity.spouseFirstName;
-        // Si ownerName est une société déjà dans la liste des assets, c'est une société, pas une personne.
-        // Mais ici on traite tout ce qui n'est PAS une société connue comme une "Personne" (ou Tiers) pour le type de nœud.
-        
-        const isOwnerCompany = assets.some(a => a.companyName === ownerName);
+      if (asset.holders && Array.isArray(asset.holders)) {
+        asset.holders.forEach(holder => {
+          const ownerName = holder.owner;
 
-        if (!isOwnerCompany) {
-          if (!peopleSet.has(ownerName)) {
-            nodes.push({
-              id: ownerName,
-              type: 'person',
-              data: { label: displayLabel },
-              position: { x: 0, y: 0 },
-            });
-            peopleSet.add(ownerName);
+          // Mapping pour affichage joli des personnes
+          let displayLabel = ownerName;
+          if (ownerName === "Vous" && identity?.firstName) displayLabel = identity.firstName;
+          else if (ownerName === "Conjoint" && identity?.spouseFirstName) displayLabel = identity.spouseFirstName;
+          // Si ownerName est une société déjà dans la liste des assets, c'est une société, pas une personne.
+          // Mais ici on traite tout ce qui n'est PAS une société connue comme une "Personne" (ou Tiers) pour le type de nœud.
+
+          const isOwnerCompany = assets.some(a => a.companyName === ownerName);
+
+          if (!isOwnerCompany) {
+            if (!peopleSet.has(ownerName)) {
+              nodes.push({
+                id: ownerName,
+                type: 'person',
+                data: { label: displayLabel },
+                position: { x: 0, y: 0 },
+              });
+              peopleSet.add(ownerName);
+            }
           }
-        }
-        
-        // Lien Owner -> Asset
-        edges.push({
-          id: `${ownerName}-${asset.companyName}`,
-          source: ownerName,
-          target: asset.companyName,
-          label: `${holder.percentage}%`,
-          type: 'smoothstep',
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-          },
-          style: { strokeWidth: 2 },
-          labelStyle: { fill: '#888', fontWeight: 700 },
+
+          // Lien Owner -> Asset
+          edges.push({
+            id: `${ownerName}-${asset.companyName}`,
+            source: ownerName,
+            target: asset.companyName,
+            label: `${holder.percentage}%`,
+            type: 'smoothstep',
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+            },
+            style: { strokeWidth: 2 },
+            labelStyle: { fill: '#888', fontWeight: 700 },
+          });
         });
-      });
+      }
     });
 
     return getLayoutedElements(nodes, edges);
@@ -193,8 +195,8 @@ export function OwnershipChartDialog({ assets, identity }: { assets: Professiona
   // On peut utiliser un useEffect pour mettre à jour.
 
   useMemo(() => { // Hack: mise à jour quand initial change
-     setNodes(initialNodes);
-     setEdges(initialEdges);
+    setNodes(initialNodes);
+    setEdges(initialEdges);
   }, [initialNodes, initialEdges, setNodes, setEdges]);
 
 
@@ -211,19 +213,19 @@ export function OwnershipChartDialog({ assets, identity }: { assets: Professiona
           <DialogTitle>Organigramme des détentions</DialogTitle>
         </DialogHeader>
         <div className="flex-1 w-full h-full min-h-0 p-4">
-            <ReactFlow
-              nodes={nodes}
-              edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              nodeTypes={nodeTypes}
-              fitView
-              attributionPosition="bottom-right"
-            >
-              <Controls />
-              <MiniMap />
-              <Background color="#aaa" gap={16} />
-            </ReactFlow>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            nodeTypes={nodeTypes}
+            fitView
+            attributionPosition="bottom-right"
+          >
+            <Controls />
+            <MiniMap />
+            <Background color="#aaa" gap={16} />
+          </ReactFlow>
         </div>
       </DialogContent>
     </Dialog>

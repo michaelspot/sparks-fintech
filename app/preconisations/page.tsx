@@ -14,17 +14,17 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { 
-  CheckCircle2, 
-  Circle, 
-  ArrowRight, 
-  ArrowLeft, 
-  Sparkles, 
-  Users, 
-  FileText, 
-  Download, 
-  Mail, 
-  Printer, 
+import {
+  CheckCircle2,
+  Circle,
+  ArrowRight,
+  ArrowLeft,
+  Sparkles,
+  Users,
+  FileText,
+  Download,
+  Mail,
+  Printer,
   Check,
   BrainCircuit,
   Settings2,
@@ -33,7 +33,9 @@ import {
   ThumbsUp,
   ThumbsDown,
   BookOpen,
-  X
+  X,
+  Presentation,
+  Loader2
 } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
@@ -43,6 +45,7 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { loadClientDataFromStorage } from "@/lib/preconisations/rules"
 
 // --- TYPES ---
 
@@ -211,7 +214,7 @@ const getUrgencyLabel = (urgency: string) => {
 
 export default function PreconisationsPage() {
   const [step, setStep] = useState(1)
-  
+
   // State Step 1
   const [recommendations, setRecommendations] = useState<Recommendation[]>(MOCK_RECOMMENDATIONS)
   const [selectedRecDetails, setSelectedRecDetails] = useState<Recommendation | null>(null)
@@ -226,11 +229,65 @@ export default function PreconisationsPage() {
     { id: "p4", name: "Enfant 2", role: "Héritier", isPrimary: false, selected: true },
   ])
   const [plan, setPlan] = useState<PlanSection[]>(MOCK_PLAN)
+  const [isExportingPPT, setIsExportingPPT] = useState(false)
 
   // Handlers
   const toggleRecommendation = (e: React.MouseEvent, id: string) => {
     e.stopPropagation(); // Empêche l'ouverture de la modale
     setRecommendations(prev => prev.map(r => r.id === id ? { ...r, selected: !r.selected } : r))
+  }
+
+  const handleExportPPT = async () => {
+    setIsExportingPPT(true)
+    const toastId = toast.loading("Génération de la présentation en cours...")
+
+    try {
+        const clientData = loadClientDataFromStorage()
+        if (!clientData) {
+            throw new Error("Données patrimoniales introuvables")
+        }
+
+        const selectedRecs = recommendations.filter(r => r.selected)
+        const selectedPlan = plan.filter(p => p.selected)
+
+        const response = await fetch('/api/export/ppt', {
+        method: 'POST',
+        body: JSON.stringify({
+                clientData,
+                recommendations: selectedRecs,
+                plan: selectedPlan
+            })
+        })
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.details || errorData.error || "Erreur lors de la génération");
+        }
+
+        // Récupérer le blob PDF
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+
+        // Créer un lien de téléchargement temporaire
+        const a = document.createElement('a');
+        a.href = url;
+        // Nom de fichier par défaut ou récupéré du header Content-Disposition si possible (complexe en fetch simple)
+        a.download = `Presentation_Patrimoniale.pdf`;
+        document.body.appendChild(a);
+        a.click();
+
+        // Nettoyage
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        toast.success("Présentation téléchargée avec succès !", { id: toastId });
+
+    } catch (error: any) {
+        console.error(error)
+        toast.error(`Erreur: ${error.message}`, { id: toastId })
+    } finally {
+        setIsExportingPPT(false)
+    }
   }
 
   const openDetails = (rec: Recommendation) => {
@@ -305,27 +362,27 @@ export default function PreconisationsPage() {
       </header>
 
       <div className="flex flex-1 flex-col gap-6 p-6 max-w-6xl mx-auto w-full">
-        
+
         {/* --- STEP 1: PRÉCONISATIONS --- */}
         {step === 1 && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="text-center space-y-2 mb-8">
               <h1 className="text-3xl font-bold tracking-tight">Sélection des Préconisations</h1>
               <p className="text-muted-foreground max-w-2xl mx-auto">
-                Voici les stratégies identifiées comme pertinentes pour votre situation. 
+                Voici les stratégies identifiées comme pertinentes pour votre situation.
                 Cliquez sur une carte pour voir les détails. Cochez pour inclure dans l'étude.
               </p>
                   </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {recommendations.map((rec) => (
-                <div 
+                <div
                   key={rec.id}
                   onClick={() => openDetails(rec)}
                   className={`
                     relative group cursor-pointer rounded-xl border-2 p-5 transition-all duration-200 hover:shadow-md flex flex-col
-                    ${rec.selected 
-                      ? "border-primary bg-background shadow-sm" 
+                    ${rec.selected
+                      ? "border-primary bg-background shadow-sm"
                       : "border-muted bg-muted/30 opacity-70 hover:opacity-100"
                     }
                   `}
@@ -335,7 +392,7 @@ export default function PreconisationsPage() {
                     <Badge variant="outline" className={`capitalize font-normal ${getUrgencyColor(rec.urgency)}`}>
                       {getUrgencyLabel(rec.urgency)}
                     </Badge>
-                    <div 
+                    <div
                       onClick={(e) => toggleRecommendation(e, rec.id)}
                       className={`
                         w-6 h-6 rounded-md border flex items-center justify-center transition-colors cursor-pointer z-10
@@ -345,7 +402,7 @@ export default function PreconisationsPage() {
                       {rec.selected && <Check className="w-4 h-4" />}
                   </div>
                   </div>
-                  
+
                   {/* Content Card */}
                   <div className="flex-1">
                     <h3 className={`font-semibold text-lg mb-2 ${rec.selected ? "text-foreground" : "text-muted-foreground"}`}>
@@ -361,8 +418,8 @@ export default function PreconisationsPage() {
                     <span className="text-xs text-muted-foreground flex items-center gap-1 group-hover:text-primary transition-colors">
                         En savoir plus <ArrowRight className="w-3 h-3" />
                     </span>
-                  </div>
-                </div>
+              </div>
+            </div>
               ))}
             </div>
           </div>
@@ -388,9 +445,9 @@ export default function PreconisationsPage() {
                         <BrainCircuit className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                         <CardTitle className="text-lg">Assistant IA</CardTitle>
                       </div>
-                      <Switch 
-                        checked={useAI} 
-                        onCheckedChange={setUseAI} 
+                      <Switch
+                        checked={useAI}
+                        onCheckedChange={setUseAI}
                         className="data-[state=checked]:bg-indigo-600"
                       />
                     </div>
@@ -402,8 +459,8 @@ export default function PreconisationsPage() {
                     <CardContent className="animate-in slide-in-from-top-2">
                       <div className="space-y-2">
                         <Label htmlFor="ai-context">Contexte ou angle spécifique</Label>
-                        <Textarea 
-                          id="ai-context" 
+                        <Textarea
+                          id="ai-context"
                           placeholder="Ex: Insister sur la protection du conjoint survivant car c'est leur inquiétude principale..."
                           className="min-h-[100px] bg-background resize-none border-indigo-200 focus-visible:ring-indigo-500"
                           value={aiContext}
@@ -429,8 +486,8 @@ export default function PreconisationsPage() {
                       {people.map((person) => (
                         <div key={person.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 transition-colors">
                           <div className="flex items-center gap-3">
-                            <Checkbox 
-                              checked={person.selected} 
+                            <Checkbox
+                              checked={person.selected}
                               onCheckedChange={() => togglePersonSelected(person.id)}
                             />
                         <div>
@@ -438,16 +495,16 @@ export default function PreconisationsPage() {
                               <div className="text-xs text-muted-foreground">{person.role}</div>
                             </div>
                           </div>
-                          
+
                           {person.selected && (
                             <div className="flex bg-muted rounded-md p-1">
-                               <button 
+                               <button
                                 onClick={() => togglePersonPrimary(person.id, true)}
                                 className={`text-xs px-3 py-1 rounded-sm transition-all ${person.isPrimary ? "bg-white shadow text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
                                >
                                  Principal
                                </button>
-                               <button 
+                               <button
                                 onClick={() => togglePersonPrimary(person.id, false)}
                                 className={`text-xs px-3 py-1 rounded-sm transition-all ${!person.isPrimary ? "bg-white shadow text-foreground font-medium" : "text-muted-foreground hover:text-foreground"}`}
                                >
@@ -477,8 +534,8 @@ export default function PreconisationsPage() {
                     <ScrollArea className="h-[400px] pr-4">
                       <div className="space-y-1">
                         {plan.map((section, idx) => (
-                          <div 
-                            key={section.id} 
+                          <div
+                            key={section.id}
                             onClick={() => togglePlanSection(section.id)}
                             className="flex items-center gap-3 p-2 rounded hover:bg-muted/50 cursor-pointer group"
                           >
@@ -529,6 +586,14 @@ export default function PreconisationsPage() {
                     <Download className="w-4 h-4 mr-2" />
                     Exporter PDF
                  </Button>
+                 <Button onClick={handleExportPPT} disabled={isExportingPPT} variant="default" className="bg-orange-600 hover:bg-orange-700 text-white">
+                    {isExportingPPT ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                        <Presentation className="w-4 h-4 mr-2" />
+                    )}
+                    Exporter PPT
+                 </Button>
               </div>
             </div>
 
@@ -549,7 +614,7 @@ export default function PreconisationsPage() {
                         {useAI && aiContext && (
                             <div className="bg-indigo-50 p-6 rounded-lg text-sm italic text-indigo-800 border-l-4 border-indigo-400 mb-8">
                                 <h4 className="font-semibold mb-2 flex items-center gap-2">
-                                    <Sparkles className="w-4 h-4" /> 
+                                    <Sparkles className="w-4 h-4" />
                                     Note de synthèse (Générée par IA)
                                 </h4>
                                 "L'analyse de votre situation met en évidence la nécessité de privilégier {aiContext.toLowerCase()}..."
@@ -575,8 +640,8 @@ export default function PreconisationsPage() {
                                     <div key={rec.id} className="border p-4 rounded bg-slate-50 relative overflow-hidden">
                                         <div className="absolute top-0 right-0 p-1">
                                             <div className={`w-2 h-2 rounded-full ${
-                                                rec.urgency === 'critique' ? 'bg-red-500' : 
-                                                rec.urgency === 'haute' ? 'bg-orange-500' : 
+                                                rec.urgency === 'critique' ? 'bg-red-500' :
+                                                rec.urgency === 'haute' ? 'bg-orange-500' :
                                                 rec.urgency === 'moyenne' ? 'bg-yellow-500' : 'bg-blue-500'
                                             }`} />
                                         </div>
@@ -597,11 +662,11 @@ export default function PreconisationsPage() {
         )}
 
       </div>
-      
+
       {/* FOOTER NAVIGATION */}
       <div className="sticky bottom-0 border-t bg-background p-4 flex justify-between items-center max-w-6xl mx-auto w-full z-10">
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
           onClick={() => setStep(prev => Math.max(1, prev - 1))}
           disabled={step === 1}
                             >
@@ -643,7 +708,7 @@ export default function PreconisationsPage() {
                             {selectedRecDetails.description}
                         </DialogDescription>
                             </DialogHeader>
-                            
+
                     <div className="space-y-6 py-4">
                         {/* Définition */}
                         <div className="bg-muted/30 p-4 rounded-lg border">
@@ -699,7 +764,7 @@ export default function PreconisationsPage() {
                             <Button variant="outline" onClick={() => setSelectedRecDetails(null)} className="flex-1 sm:flex-none">
                                 Fermer
                             </Button>
-                <Button 
+                <Button
                                 onClick={() => {
                                     toggleRecommendation({ stopPropagation: () => {} } as any, selectedRecDetails.id);
                                     setSelectedRecDetails(null);

@@ -44,12 +44,15 @@ export async function POST(request: NextRequest) {
       });
     }
     
-    // Supprimer tous les fichiers sauf le template original
-    const TEMPLATE_DOC_ID = '1SEQaYl8jiynfTxdS6lp7nmHZSkdgw8DQqT99Bva-ado';
+    // Supprimer tous les fichiers sauf les templates originaux
+    const TEMPLATE_IDS = [
+        '1SEQaYl8jiynfTxdS6lp7nmHZSkdgw8DQqT99Bva-ado', // Ancien template
+        '1RHgg7nmm3SPHClDZm9JaeaWcum3LsXqupMEtVigEv-o'  // Nouveau template Paysage
+    ];
     let deletedCount = 0;
     
     for (const file of files) {
-      if (file.id !== TEMPLATE_DOC_ID) {
+      if (!TEMPLATE_IDS.includes(file.id!)) {
         try {
           await drive.files.delete({
             fileId: file.id!,

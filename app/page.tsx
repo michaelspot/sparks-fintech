@@ -7,21 +7,118 @@ import { Separator } from "@/components/ui/separator"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2, TrendingUp, Users, FileText, Download, User } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
+
+// Types pour les données du localStorage
+interface Property {
+  netValue: number;
+}
+
+interface FinancialAsset {
+  realValue: number;
+}
+
+interface ProfessionalAsset {
+  valuation: number;
+}
+
+interface Income {
+  amount: number;
+}
 
 export default function Page() {
   const [isImporting, setIsImporting] = useState(false);
   const [importSuccess, setImportSuccess] = useState(false);
 
+  // États pour les données calculées
+  const [patrimoineTotal, setPatrimoineTotal] = useState(0);
+  const [revenuAnnuel, setRevenuAnnuel] = useState(0);
+  const [simulationsCount, setSimulationsCount] = useState(0);
+  const [preconisationsCount, setPreconisationsCount] = useState(0);
+  const [hasData, setHasData] = useState(false);
+
+  // Fonction pour charger les données depuis le localStorage
+  const loadDataFromStorage = useCallback(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      // Calculer le patrimoine total
+      let totalPatrimoine = 0;
+
+      // Patrimoine immobilier
+      const immobilierStr = localStorage.getItem('patrimoineImmobilierInfo');
+      if (immobilierStr) {
+        const immobilier: Property[] = JSON.parse(immobilierStr);
+        totalPatrimoine += immobilier.reduce((sum, item) => sum + (item.netValue || 0), 0);
+      }
+
+      // Patrimoine financier
+      const financierStr = localStorage.getItem('patrimoineFinancierInfo');
+      if (financierStr) {
+        const financier: FinancialAsset[] = JSON.parse(financierStr);
+        totalPatrimoine += financier.reduce((sum, item) => sum + (item.realValue || 0), 0);
+      }
+
+      // Patrimoine professionnel
+      const professionnelStr = localStorage.getItem('patrimoineProfessionnelInfo');
+      if (professionnelStr) {
+        const professionnel: ProfessionalAsset[] = JSON.parse(professionnelStr);
+        totalPatrimoine += professionnel.reduce((sum, item) => sum + (item.valuation || 0), 0);
+      }
+
+      setPatrimoineTotal(totalPatrimoine);
+
+      // Calculer le revenu annuel (revenus mensuels × 12)
+      const revenusStr = localStorage.getItem('budgetRevenusInfo');
+      if (revenusStr) {
+        const revenus: Income[] = JSON.parse(revenusStr);
+        const revenuMensuel = revenus.reduce((sum, item) => sum + (item.amount || 0), 0);
+        setRevenuAnnuel(revenuMensuel * 12);
+      } else {
+        setRevenuAnnuel(0);
+      }
+
+      // Compter les simulations
+      // Les simulations peuvent être stockées sous différentes clés
+      let simCount = 0;
+      const simulationKeys = ['simulationCessionImmobiliere', 'simulationDMTG', 'simulationAllocation'];
+      simulationKeys.forEach(key => {
+        if (localStorage.getItem(key)) simCount++;
+      });
+      setSimulationsCount(simCount);
+
+      // Compter les préconisations sélectionnées
+      const precoStr = localStorage.getItem('selectedPreconisations');
+      if (precoStr) {
+        const precos = JSON.parse(precoStr);
+        setPreconisationsCount(Array.isArray(precos) ? precos.length : 0);
+      } else {
+        setPreconisationsCount(0);
+      }
+
+      // Vérifier s'il y a des données
+      const hasAnyData = !!(immobilierStr || financierStr || professionnelStr || revenusStr);
+      setHasData(hasAnyData);
+
+    } catch (error) {
+      console.error('Erreur lors du chargement des données:', error);
+    }
+  }, []);
+
+  // Charger les données au montage du composant
+  useEffect(() => {
+    loadDataFromStorage();
+  }, [loadDataFromStorage]);
+
   // Fonction pour importer des données complètes d'un client fictif
   const importFictionalClientData = async () => {
     setIsImporting(true);
-    
+
     try {
       // Nettoyer d'abord le localStorage pour éviter les conflits
       const keysToClean = [
         'identityPersonalInfo',
-        'identityObjectifsInfo', 
+        'identityObjectifsInfo',
         'identityInvestorProfileInfo',
         'patrimoineImmobilierInfo',
         'patrimoineFinancierInfo',
@@ -29,7 +126,7 @@ export default function Page() {
         'budgetRevenusInfo',
         'budgetChargesInfo'
       ];
-      
+
       keysToClean.forEach(key => {
         localStorage.removeItem(key);
       });
@@ -344,10 +441,13 @@ export default function Page() {
 
       // Simuler un délai pour le feedback utilisateur
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
+      // Recharger les données pour mettre à jour l'affichage
+      loadDataFromStorage();
+
       setImportSuccess(true);
       setTimeout(() => setImportSuccess(false), 3000);
-      
+
     } catch (error) {
       console.error('Erreur lors de l\'import des données:', error);
     } finally {
@@ -376,8 +476,12 @@ export default function Page() {
               <Building2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">€ 0</div>
-              <p className="text-xs text-muted-foreground">Commencez par saisir vos informations</p>
+              <div className="text-2xl font-bold">
+                {patrimoineTotal.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {hasData ? 'Immobilier + Financier + Professionnel' : 'Commencez par saisir vos informations'}
+              </p>
             </CardContent>
           </Card>
 
@@ -387,8 +491,12 @@ export default function Page() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">€ 0</div>
-              <p className="text-xs text-muted-foreground">Aucun revenu saisi</p>
+              <div className="text-2xl font-bold">
+                {revenuAnnuel.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {revenuAnnuel > 0 ? 'Revenus mensuels × 12' : 'Aucun revenu saisi'}
+              </p>
             </CardContent>
           </Card>
 
@@ -398,8 +506,10 @@ export default function Page() {
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">Aucune simulation créée</p>
+              <div className="text-2xl font-bold">{simulationsCount}</div>
+              <p className="text-xs text-muted-foreground">
+                {simulationsCount > 0 ? `${simulationsCount} simulation(s) créée(s)` : 'Aucune simulation créée'}
+              </p>
             </CardContent>
           </Card>
 
@@ -409,8 +519,10 @@ export default function Page() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">En attente d'analyse</p>
+              <div className="text-2xl font-bold">{preconisationsCount}</div>
+              <p className="text-xs text-muted-foreground">
+                {preconisationsCount > 0 ? `${preconisationsCount} préconisation(s) sélectionnée(s)` : 'En attente d\'analyse'}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -447,8 +559,8 @@ export default function Page() {
                       Importez un profil client complet pour découvrir toutes les fonctionnalités
                     </p>
                   </div>
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     variant="outline"
                     onClick={importFictionalClientData}
                     disabled={isImporting}

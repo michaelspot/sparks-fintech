@@ -306,7 +306,7 @@ export default function ProfessionalPatrimonyPage() {
       const savedIdentity = localStorage.getItem(IDENTITY_KEY)
       if (savedIdentity) {
         setIdentity(JSON.parse(savedIdentity))
-      }
+    }
 
       setIsLoaded(true)
     }
@@ -513,7 +513,7 @@ export default function ProfessionalPatrimonyPage() {
                 onRemoveHolder={handleRemoveHolder}
                 otherAssets={assets}
                 identity={identity}
-              />
+                  />
 
               <div className="flex justify-end space-x-2 mt-4">
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
@@ -540,7 +540,7 @@ export default function ProfessionalPatrimonyPage() {
                 onRemoveHolder={handleRemoveHolder}
                 otherAssets={editingAsset ? assets.filter(a => a.id !== editingAsset.id) : assets}
                 identity={identity}
-              />
+                  />
 
               <div className="flex justify-end space-x-2 mt-4">
                 <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
@@ -576,7 +576,7 @@ export default function ProfessionalPatrimonyPage() {
                       <div className="flex justify-between items-start">
                         <div>
                           <h3 className="text-3xl font-bold text-foreground">{totalValuation.toLocaleString("fr-FR")} €</h3>
-                          <CardDescription>Patrimoine Professionnel Total</CardDescription>
+                      <CardDescription>Patrimoine Professionnel Total</CardDescription>
                         </div>
                         <OwnershipChartDialog assets={assets} identity={identity} />
                       </div>
